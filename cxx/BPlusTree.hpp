@@ -1,6 +1,7 @@
 #pragma once
 #include <functional>
 #include <iostream>
+#include <stdexcept>
 
 namespace my {
 template <class T1, class T2> struct Pair {
@@ -18,39 +19,106 @@ public:
     typedef T                  data_type;
     typedef Pair<const Key, T> value_type;
     typedef short              order_type;
+    typedef unsigned int       size_type;
 
 protected:
-    class InnerNode {  // 内部节点
+    typedef unsigned int node_size_type;  // no need bigger than size_type
+    typedef struct ListNode {
+        data_type        data;
+        struct ListNode* prior;
+        struct ListNode* next;
+    } ListNode, *ListPtr;
+
+    class BTIterator {
+    private:
+        ListPtr node;
+
     public:
-        InnerNode*  parent = nullptr;  // 父亲
-        Key*        key    = nullptr;  // 关键码数组
-        InnerNode** child  = nullptr;  // 孩子数组
-        order_type  count  = 0;
-        InnerNode(order_type m) {
-            key   = new Key[m];
-            child = new InnerNode*[m];
+        BTIterator(ListPtr n) : node(n){};
+
+        data_type& data() {
+            if (node == nullptr) {
+                throw std::runtime_error("try to get data from nullptr");
+            }
+            return node->data;
         }
-        ~InnerNode() {
+
+        bool operator==(const BTIterator& other) {
+            if (this->node == other.node) {
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+
+        bool operator++() {
+            if (node == nullptr) {
+                throw std::runtime_error("BPlusTree iterator not incrementable");
+            }
+            else {
+                node = node->next;
+            }
+        }
+
+        bool operator--() {
+            if (node == nullptr) {
+                throw std::runtime_error("BPlusTree iterator not decrementable");
+            }
+            else {
+                node = node->prior;
+            }
+        }
+    };
+
+    class BTNode {
+    public:
+        const bool type;  // 0: inner node; 1: leaf node
+        key_type*  key   = nullptr;
+        BTNode**   child = nullptr;
+        ListPtr*   entry = nullptr;
+        order_type count = 0;
+        BTNode(order_type m, bool type) : type(type) {
+            key = new key_type[m];
+            if (type) {
+                entry = new ListPtr[m];
+            }
+            else {
+                child = new BTNode*[m];
+            }
+        }
+        ~BTNode() {
             delete[] key;
-            delete[] child;
+            if (type) {
+                delete[] entry;
+            }
+            else {
+                delete[] child;
+            }
         }
     };
 
-    class LeafNode : public InnerNode {  // 叶子节点
-    public:
-        T* data = nullptr;  // 数据数组
-        LeafNode(order_type m) : InnerNode(m) {
-            data = new T[m];
-        }
-        ~LeafNode() {
-            delete[] data;
-        }
-    };
-
-    int        _size = 0;
-    int        _order;
-    InnerNode* _root;
+    size_type      _size       = 0;  // 数据数量
+    node_size_type _node_count = 0;  // 节点数量
+    order_type     _order;
+    BTNode*        _root;
+    ListPtr        _head;
 
 public:
+    BPlusTree(order_type order = 3) : _order(order) {
+        if (order < 0) {
+            throw std::runtime_error("order of BPlusTree can not be a negative number");
+        }
+    };
+
+    size_type size() const {
+        return _size;
+    }
+
+    order_type order() const {
+        return _order;
+    }
+
+    BTIterator find(const key_type& k) {}
 };
 }  // namespace my
