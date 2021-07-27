@@ -1,1 +1,7 @@
+cxx/build/
+cxx/.vscode/
+cxx/data/
+cxx/markdown/
+cxx/.clang-format
+cxx/.VSCodeCounter/
 !.gitignore
