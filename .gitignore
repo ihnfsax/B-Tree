@@ -4,4 +4,4 @@ cxx/data/
 cxx/markdown/
 cxx/.clang-format
 cxx/.VSCodeCounter/
-!.gitignore
+.gitignore
