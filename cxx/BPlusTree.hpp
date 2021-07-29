@@ -7,15 +7,17 @@
 
 namespace my {
 
-#define MOVE_NODE(des, des_idx, src, src_idx)                \
-    {                                                        \
-        des->key[des_idx] = src->key[src_idx];               \
-        if (des->type) {                                     \
-            des->entry[des_idx]      = src->entry[src_idx];  \
-            des->entry[des_idx]->key = &(des->key[des_idx]); \
-        }                                                    \
-        else                                                 \
-            des->child[des_idx] = src->child[src_idx];       \
+#define MOVE_NODE(des, des_idx, src, src_idx)                  \
+    {                                                          \
+        des->key[des_idx] = src->key[src_idx];                 \
+        if (des->type) {                                       \
+            des->entry[des_idx]      = src->entry[src_idx];    \
+            des->entry[des_idx]->key = &(des->key[des_idx]);   \
+        }                                                      \
+        else {                                                 \
+            des->child[des_idx]         = src->child[src_idx]; \
+            des->child[des_idx]->parent = des;                 \
+        }                                                      \
     }
 
 template <class T1, class T2> struct Pair {
@@ -141,10 +143,11 @@ public:
                 child = new BTNode*[m];
         }
         ~BTNode() {
-            delete[] key;
-            if (type)
+            if (key)
+                delete[] key;
+            if (type && entry)
                 delete[] entry;
-            else
+            else if (child)
                 delete[] child;
         }
 
@@ -298,9 +301,9 @@ public:
         while (true) {
             order_type r = v->search(key);
             if (v->type && r >= 0 && v->key[r] == key) {
-                if (v->entry[r]->prior == nullptr)
-                    _head = v->entry[r]->next;
                 doErase(v, r);
+                if (v->entry[0]->prior == nullptr)
+                    _head = v->entry[0];
                 _size--;
                 return true;
             }
@@ -388,32 +391,63 @@ private:
         BTNode* p = n->parent;
         if (p == nullptr || n->count > (_order + 1) / 2) {
             n->erase(r);
-            return;
         }
-        order_type pr = 0;
-        while (p->child[pr] != n)
-            pr++;
-        /* borrow from left */
-        if (pr > 0 && p->child[pr - 1]->count > (_order + 1) / 2) {
-            BTNode* lb = p->child[pr - 1];
-            if (n->type) {
-                delete n->entry[r];
-                n->entry[r] = nullptr;
+        else {
+            order_type pr = 0;
+            while (p->child[pr] != n)
+                pr++;
+            /* borrow from left */
+            if (pr > 0 && p->child[pr - 1]->count > (_order + 1) / 2) {
+                BTNode* lb = p->child[pr - 1];
+                if (n->type) {
+                    delete n->entry[r];
+                    n->entry[r] = nullptr;
+                }
+                for (order_type i = r; i > 0; --i) {
+                    MOVE_NODE(n, i, n, i - 1);
+                }
+                MOVE_NODE(n, 0, lb, lb->count - 1);
+                lb->count--;
+                p->key[pr] = n->key[0];
             }
-            for (order_type i = r; i > 0; --i) {
-                MOVE_NODE(n, i, n, i - 1);
+            /* borrow from right */
+            else if (pr < p->count - 1 && p->child[pr + 1]->count > (_order + 1) / 2) {
+                BTNode* rb = p->child[pr + 1];
+                n->erase(r);
+                MOVE_NODE(n, n->count, rb, 0);
+                rb->erase(0, false);
+                n->count++;
             }
-            MOVE_NODE(n, 0, lb, lb->count - 1);
-            lb->count--;
-            p->key[pr] = n->key[0];
+            /* merge with left */
+            else if (pr > 0) {
+                BTNode* lb = p->child[pr - 1];
+                n->erase(r);
+                for (order_type i = 0; i < n->count; ++i) {
+                    MOVE_NODE(lb, lb->count + i, n, i);
+                }
+                lb->count += n->count;
+                doErase(p, pr);
+                delete n;
+                n = lb;
+                _node_count--;
+            }
+            else { /* merge with right */
+                BTNode* rb = p->child[pr + 1];
+                n->erase(r);
+                for (order_type i = 0; i < rb->count; ++i) {
+                    MOVE_NODE(n, n->count + i, rb, i);
+                }
+                n->count += rb->count;
+                doErase(p, pr + 1);
+                delete rb;
+                _node_count--;
+            }
         }
-        /* borrow from right */
-        if (pr < p->count - 1 && p->child[pr + 1]->count > (_order + 1) / 2) {
-            BTNode* rb = p->child[pr + 1];
-            n->erase(r);
-            MOVE_NODE(n, n->count, rb, 0);
-            rb->erase(0, false);
-            n->count++;
+        if (p && p->count == 1) {
+            n->parent = nullptr;
+            delete p;
+            _root = n;
+            _node_count--;
         }
     }
 };  // namespace my

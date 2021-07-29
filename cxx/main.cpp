@@ -63,7 +63,21 @@ int main(int argc, char* argv[]) {
     std::cout << btree.size() << "\n";
     std::cout << btree.ncount() << "\n";
     std::cout << btree.erase(-7) << "\n";
-    std::cout << btree.erase(-7) << "\n";
+    btree.print();
+    std::cout << btree.size() << "\n";
+    std::cout << btree.ncount() << "\n";
+
+    std::cout << btree.erase(1) << "\n";
+    btree.print();
+    std::cout << btree.size() << "\n";
+    std::cout << btree.ncount() << "\n";
+
+    std::cout << btree.erase(0) << "\n";
+    btree.print();
+    std::cout << btree.size() << "\n";
+    std::cout << btree.ncount() << "\n";
+
+    std::cout << btree.erase(15) << "\n";
     btree.print();
     std::cout << btree.size() << "\n";
     std::cout << btree.ncount() << "\n";
