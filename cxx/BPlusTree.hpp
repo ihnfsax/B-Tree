@@ -6,6 +6,18 @@
 #include <string.h>
 
 namespace my {
+
+#define MOVE_NODE(des, des_idx, src, src_idx)                \
+    {                                                        \
+        des->key[des_idx] = src->key[src_idx];               \
+        if (des->type) {                                     \
+            des->entry[des_idx]      = src->entry[src_idx];  \
+            des->entry[des_idx]->key = &(des->key[des_idx]); \
+        }                                                    \
+        else                                                 \
+            des->child[des_idx] = src->child[src_idx];       \
+    }
+
 template <class T1, class T2> struct Pair {
     typedef T1 first_type;
     typedef T2 second_type;
@@ -33,6 +45,12 @@ public:
         ListNode();
         ListNode(key_type* k) : key(k){};
         ListNode(key_type* k, data_type d) : key(k), data(d){};
+        ~ListNode() {
+            if (this->prior)
+                this->prior->next = this->next;
+            if (this->next)
+                this->next->prior = this->prior;
+        }
         /* flag: true: insert before, false: insert after */
         void insert(ListNode* p, bool flag) {
             if (p == nullptr)
@@ -147,13 +165,7 @@ public:
             if (type && d == nullptr)
                 throw std::runtime_error("try to insert a nullptr to data field");
             for (order_type i = count - 1; i > r; --i) {
-                key[i + 1] = key[i];
-                if (type) { /* leaf node */
-                    entry[i + 1]      = entry[i];
-                    entry[i + 1]->key = &key[i + 1];
-                }
-                else /* inner node */
-                    child[i + 1] = child[i];
+                MOVE_NODE(this, i + 1, this, i);
             }
             count++;
             key[r + 1] = k;
@@ -171,14 +183,45 @@ public:
             return r + 1;
         }
 
+        void erase(const order_type& r, bool flag = true) {
+            if (type && flag) {
+                delete entry[r];
+                entry[r] = nullptr;
+            }
+            for (order_type i = r; i < count - 1; ++i) {
+                MOVE_NODE(this, i, this, i + 1)
+            }
+            if (r == 0) {
+                fresh();
+            }
+            count--;
+        }
+
+        void fresh() {
+            BTNode* v = this;
+            while (v) {
+                order_type pr = 0;
+                if (v->parent) {
+                    while (v->parent->child[pr] != v)
+                        pr++;
+                    v->parent->key[pr] = v->key[0];
+                }
+                v = v->parent;
+            }
+        }
+
         BTNode* splitSelf(order_type s) {
             if (s >= count - 1 || s < -1)
                 throw std::runtime_error("can't split node");
             BTNode* node = new BTNode(order, type);
             node->count  = count - s - 1;
             memcpy(node->key, &key[s + 1], node->count * sizeof(key_type));
-            if (type)
+            if (type) {
                 memcpy(node->entry, &entry[s + 1], node->count * sizeof(ListPtr));
+                for (order_type i = 0; i < node->count; ++i) {
+                    node->entry[i]->key = &node->key[i];
+                }
+            }
             else {
                 memcpy(node->child, &child[s + 1], node->count * sizeof(BTNode*));
                 for (order_type i = 0; i < node->count; ++i) {
@@ -212,23 +255,32 @@ public:
         return _order;
     }
 
+    node_size_type ncount() const {
+        return _node_count;
+    }
+
     BTIterator find(const key_type& key) {}
 
     bool insert(const key_type& key, const data_type& data) {
         BTNode* v = _root;
-        if (v == nullptr) {
-            /* only for _root */
+        if (v == nullptr) { /* only for _root */
             v = new BTNode(_order, true);
             v->insert(-1, key, &data);
             _root = v;
+            _head = v->entry[0];
+            _size++;
+            _node_count++;
             return true;
         }
         while (true) {
             order_type r = v->search(key);
             if (v->type) {
                 if (r >= 0 && v->key[r] == key)
-                    return false;  // 插入失败
+                    return false; /* already exists */
                 doInsert(v, r, key, data);
+                if (v->entry[r]->prior == nullptr)
+                    _head = v->entry[r];
+                _size++;
                 return true;
             }
             else {
@@ -236,6 +288,26 @@ public:
                     v->key[0] = key, r = 0;
                 v = v->child[r];
             }
+        }
+    }
+
+    bool erase(const key_type& key) {
+        BTNode* v = _root;
+        if (v == nullptr)
+            return false;
+        while (true) {
+            order_type r = v->search(key);
+            if (v->type && r >= 0 && v->key[r] == key) {
+                if (v->entry[r]->prior == nullptr)
+                    _head = v->entry[r]->next;
+                doErase(v, r);
+                _size--;
+                return true;
+            }
+            else if (!v->type && r != -1)
+                v = v->child[r];
+            else
+                return false;
         }
     }
     /* for debug */
@@ -269,39 +341,81 @@ public:
                 cnodes.clear();
             }
         }
+        ListPtr k = _head;
+        while (k) {
+            std::cout << *(k->key) << ":" << k->data << "  ";
+            k = k->next;
+        }
+        std::cout << "\n";
     }
 
 private:
     void doInsert(BTNode* n, order_type& r, const key_type& k, const data_type& d) {
         if (n->count < _order) {
             r = n->insert(r, k, &d);
+            return;
         }
-        else {
-            order_type s  = _order / 2;
-            BTNode*    n2 = nullptr;
-            if (r < s) {
-                n2 = n->splitSelf(s - 1);
-                r  = n->insert(r, k, &d);
+        order_type s  = _order / 2;
+        BTNode*    n2 = nullptr;
+        if (r < s) { /* insert to left */
+            n2 = n->splitSelf(s - 1);
+            r  = n->insert(r, k, &d);
+        }
+        else { /* insert to right */
+            n2 = n->splitSelf(s);
+            r  = n2->insert(r - s - 1, k, &d);
+        }
+        if (n->parent) { /* recursion */
+            order_type r2 = n->parent->search(n2->key[0]);
+            doInsert(n->parent, r2, n2->key[0], d);
+            n->parent->child[r2] = n2;
+        }
+        else { /* create new root */
+            n->parent = new BTNode(_order, false);
+            n->parent->insert(-1, n->key[0]);
+            n->parent->insert(0, n2->key[0]);
+            n->parent->child[0] = n;
+            n->parent->child[1] = n2;
+            n2->parent          = n->parent;
+            _root               = n->parent;
+            _node_count++;
+        }
+        n = r < s ? n : n2;
+        _node_count++;
+    }
+
+    void doErase(BTNode* n, const order_type& r) {
+        BTNode* p = n->parent;
+        if (p == nullptr || n->count > (_order + 1) / 2) {
+            n->erase(r);
+            return;
+        }
+        order_type pr = 0;
+        while (p->child[pr] != n)
+            pr++;
+        /* borrow from left */
+        if (pr > 0 && p->child[pr - 1]->count > (_order + 1) / 2) {
+            BTNode* lb = p->child[pr - 1];
+            if (n->type) {
+                delete n->entry[r];
+                n->entry[r] = nullptr;
             }
-            else {
-                n2 = n->splitSelf(s);
-                r  = n2->insert(r - s - 1, k, &d);
+            for (order_type i = r; i > 0; --i) {
+                MOVE_NODE(n, i, n, i - 1);
             }
-            if (n->parent) {
-                order_type r2 = n->parent->search(n2->key[0]);
-                doInsert(n->parent, r2, n2->key[0], d);
-                n->parent->child[r2] = n2;
-            }
-            else {
-                n->parent = new BTNode(_order, false);
-                n->parent->insert(-1, n->key[0]);
-                n->parent->insert(0, n2->key[0]);
-                n->parent->child[0] = n;
-                n->parent->child[1] = n2;
-                n2->parent          = n->parent;
-                _root               = n->parent;
-            }
+            MOVE_NODE(n, 0, lb, lb->count - 1);
+            lb->count--;
+            p->key[pr] = n->key[0];
+        }
+        /* borrow from right */
+        if (pr < p->count - 1 && p->child[pr + 1]->count > (_order + 1) / 2) {
+            BTNode* rb = p->child[pr + 1];
+            n->erase(r);
+            MOVE_NODE(n, n->count, rb, 0);
+            rb->erase(0, false);
+            n->count++;
         }
     }
 };  // namespace my
+#undef MOVE_NODE
 }  // namespace my
