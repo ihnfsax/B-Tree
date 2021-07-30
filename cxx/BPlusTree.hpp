@@ -25,7 +25,7 @@ template <class T1, class T2> struct Pair {
     typedef T2 second_type;
     T1         first;
     T2         second;
-    Pair() : first(T1()), second(T2()){};
+    Pair(const T1& t1) : first(t1){};
     Pair(const T1& t1, const T2& t2) : first(t1), second(t2){};
 };
 
@@ -37,7 +37,7 @@ public:
     typedef short              order_type;
     typedef unsigned int       size_type;
 
-    // protected:
+protected:
     typedef unsigned int node_size_type;  // no need bigger than size_type
     typedef struct ListNode {
         key_type*        key;
@@ -45,7 +45,7 @@ public:
         struct ListNode* prior = nullptr;
         struct ListNode* next  = nullptr;
         ListNode();
-        ListNode(key_type* k) : key(k){};
+        explicit ListNode(key_type* k) : key(k){};
         ListNode(key_type* k, data_type d) : key(k), data(d){};
         ~ListNode() {
             if (this->prior)
@@ -74,28 +74,40 @@ public:
         }
     } ListNode, *ListPtr;
 
+    typedef struct BTPair {
+        typedef Key first_type;
+        typedef T   second_type;
+        const Key   first;
+        T&          second;
+        BTPair(const Key& t1, T& t2) : first(t1), second(t2){};
+    } BTPair;
+
     class BTIterator {
     private:
         ListPtr node;
+        BTPair* pair = nullptr;
 
     public:
-        BTIterator(ListPtr n) : node(n){};
-
-        const key_type& key() {
-            if (node == nullptr) {
-                throw std::runtime_error("try to get key from nullptr");
+        BTIterator(ListPtr n) : node(n) {
+            if (n) {
+                pair = new BTPair(*n->key, n->data);
             }
-            return node->key;
+        };
+
+        ~BTIterator() {
+            if (pair) {
+                delete pair;
+            }
         }
 
-        data_type& data() {
-            if (node == nullptr) {
-                throw std::runtime_error("try to get data from nullptr");
+        BTPair* operator->() {
+            if (pair == nullptr) {
+                throw std::runtime_error("try to get value from nullptr");
             }
-            return node->data;
+            return pair;
         }
 
-        bool operator==(const BTIterator& other) {
+        bool operator==(const BTIterator& other) const {
             if (this->node == other.node) {
                 return true;
             }
@@ -104,21 +116,36 @@ public:
             }
         }
 
-        bool operator++() {
+        bool operator!=(const BTIterator& other) const {
+            if (this->node != other.node) {
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+
+        void operator++() {
             if (node == nullptr) {
                 throw std::runtime_error("BPlusTree iterator not incrementable");
             }
             else {
                 node = node->next;
+                if (pair)
+                    delete pair;
+                pair = node ? new BTPair(*node->key, node->data) : nullptr;
             }
         }
 
-        bool operator--() {
+        void operator--() {
             if (node == nullptr) {
                 throw std::runtime_error("BPlusTree iterator not decrementable");
             }
             else {
                 node = node->prior;
+                if (pair)
+                    delete pair;
+                pair = node ? new BTPair(*node->key, node->data) : nullptr;
             }
         }
     };
@@ -262,7 +289,26 @@ public:
         return _node_count;
     }
 
-    BTIterator find(const key_type& key) {}
+    BTIterator end() {
+        return BTIterator(nullptr);
+    }
+
+    BTIterator find(const key_type& key) {
+        BTNode* v = _root;
+        if (v == nullptr) {
+            return BTIterator(nullptr);
+        }
+        while (true) {
+            order_type r = v->search(key);
+            if (v->type && r >= 0 && v->key[r] == key) {
+                return BTIterator(v->entry[r]);
+            }
+            else if (!v->type && r != -1)
+                v = v->child[r];
+            else
+                return BTIterator(nullptr);
+        }
+    }
 
     bool insert(const key_type& key, const data_type& data) {
         BTNode* v = _root;
