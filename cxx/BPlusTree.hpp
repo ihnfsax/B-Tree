@@ -200,9 +200,7 @@ protected:
                 DELETE_ARRAY(child);
         }
 
-        BTNode(const BTNode& n) {
-            this->order  = n.order;
-            this->type   = n.type;
+        BTNode(const BTNode& n) : order(n.order), type(n.type) {
             this->count  = n.count;
             this->parent = n.parent;
             DELETE_ARRAY(key);
@@ -357,6 +355,20 @@ public:
         this->_size       = tree._size;
         this->_node_count = tree._node_count;
         this->_order      = tree._order;
+        this->_head       = nullptr;
+        this->_root       = doCopy(tree._root, nullptr, 0, _head);
+    }
+
+    BPlusTree& operator=(const BPlusTree& tree) {
+        if (this == &tree) {
+            return *this;
+        }
+        this->_size       = tree._size;
+        this->_node_count = tree._node_count;
+        this->_order      = tree._order;
+        this->_head       = nullptr;
+        this->_root       = doCopy(tree._root, nullptr, 0, _head);
+        return *this;
     }
 
     size_type size() const {
@@ -519,7 +531,7 @@ public:
         std::cout << "\nSize: " << _size << "\nNode Count: " << _node_count << "\n";
     }
 
-    // private:
+private:
     BTNode* doInsert(BTNode* const n, order_type& r, const key_type& k, const data_type& d) {
         if (n->count < _order) {
             r = n->insert(r, k, &d);
@@ -556,7 +568,7 @@ public:
         return flag ? n : n2;
     }
 
-    void doErase(BTNode* n, const order_type& r) {
+    void doErase(BTNode* const n, const order_type& r) {
         BTNode* p = n->parent;
         if (p == nullptr || n->count > (_order + 1) / 2) {
             n->erase(r);
@@ -619,7 +631,7 @@ public:
         }
     }
 
-    void doRelease(BTNode* n, bool flag = true) {
+    void doRelease(BTNode*& n, bool flag = true) {
         if (n->type) {
             if (n->count && n->entry[0]->prior == nullptr) {
                 _head = n->entry[n->count - 1]->next;
@@ -631,7 +643,7 @@ public:
         }
         else {
             while (n->count) {
-                doRelease(n->child[0], false);
+                doRelease(n->child[n->count - 1], false);
             }
         }
         if (n->parent) {
@@ -649,18 +661,36 @@ public:
         }
     }
 
-    BTNode* doCopy(BTNode* n, BTNode* p) {
+    /* n: src node, p: new parent, return: copied node */
+    static BTNode* doCopy(BTNode* const n, BTNode* const p, const order_type& pr, ListPtr& h) {
         if (n == nullptr)
             return nullptr;
         BTNode* t = new BTNode(*n);
         t->parent = p;
+        if (p)
+            p->child[pr] = t; /* must */
         if (t->type) {
+            t->count = 0;
+            for (order_type i = 0; i < n->count; ++i) {
+                t->insert(i - 1, n->key[i], &n->entry[i]->data);
+            }
+            BTNode* prior = findPriorOne(t);
+            if (prior) { /* link two leaf node */
+                t->entry[0]->prior                   = prior->entry[prior->count - 1];
+                prior->entry[prior->count - 1]->next = t->entry[0];
+            }
+            else
+                h = t->entry[0]; /* update list head */
+        }
+        else {
             for (order_type i = 0; i < t->count; ++i) {
+                t->child[i] = doCopy(n->child[i], t, i, h); /* can be ignore */
             }
         }
+        return t;
     }
 
-    BTNode* findFriorOne(BTNode* n) {
+    static BTNode* findPriorOne(BTNode* n) {
         order_type pr;
         BTNode *   p, *b;
         if (n == nullptr || !n->type) {
@@ -687,7 +717,6 @@ public:
             }
         }
     }
-
     /* for debug */
     BTNode* doSearch(const key_type& k) {
         BTNode* v = _root;
