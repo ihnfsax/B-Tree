@@ -180,6 +180,7 @@ protected:
         ListPtr*         entry  = nullptr;
         BTNode*          parent = nullptr;
         order_type       count  = 0;
+
         BTNode(order_type m, bool type) : order(m), type(type) {
             if (m < 3) {
                 throw std::runtime_error("order of BPlusTree must >= 3");
@@ -190,6 +191,7 @@ protected:
             else
                 child = new BTNode*[m];
         }
+
         ~BTNode() {
             DELETE_ARRAY(key);
             if (type)
@@ -288,17 +290,17 @@ protected:
             for (order_type i = r; i < count - 1; ++i) {
                 MOVE_NODE(this, i, this, i + 1);
             }
-            if (r == 0) {
+            count--;
+            if (r == 0 && count > 0) {
                 fresh();
             }
-            count--;
         }
 
         void fresh() {
             BTNode* v = this;
             while (v) {
                 order_type pr = 0;
-                if (v->parent) {
+                if (v->parent && v->parent->count > 0 && v->count > 0) {
                     while (v->parent->child[pr] != v)
                         pr++;
                     v->parent->key[pr] = v->key[0];
@@ -331,18 +333,25 @@ protected:
         }
     };
 
+public:
     size_type      _size       = 0;  // 数据数量
     node_size_type _node_count = 0;  // 节点数量
     order_type     _order;
     BTNode*        _root = nullptr;
     ListPtr        _head = nullptr;
 
-public:
     BPlusTree(order_type order = 3) : _order(order) {
         if (order < 3) {
             throw std::runtime_error("order of BPlusTree must >= 3");
         }
     };
+
+    ~BPlusTree() {
+        doRelease(_root);
+        if (_root != nullptr || _head != nullptr || _size != 0 || _node_count != 0) {
+            throw std::runtime_error("something terrible happened");  // TODO
+        }
+    }
 
     size_type size() const {
         return _size;
@@ -468,7 +477,7 @@ public:
         if (_root != nullptr) {
             pnodes.push_back(_root);
             while (!pnodes.empty()) {
-                std::cout << "Level " << l++ << ": ";
+                std::cout << "Level " << l++ << ":" << pnodes.size() << " ";
                 while (!pnodes.empty()) {
                     v = *(pnodes.begin());
                     pnodes.pop_front();
@@ -492,11 +501,17 @@ public:
             }
         }
         ListPtr k = _head;
+        std::cout << "List: ";
         while (k) {
-            std::cout << *(k->key) << ":" << k->data << "  ";
+            std::cout << "(" << *(k->key) << ":" << k->data << ")";
+            if (k->next) {
+                std::cout << "-->";
+            }
             k = k->next;
         }
         std::cout << "\n";
+        std::cout << "Size: " << _size << "\n";
+        std::cout << "Node Count: " << _node_count << "\n";
     }
 
 private:
@@ -594,6 +609,36 @@ private:
             DELETE(p);
             _root = n;
             _node_count--;
+        }
+    }
+
+    void doRelease(BTNode* n, bool flag = true) {
+        if (n->type) {
+            if (n->count && n->entry[0]->prior == nullptr) {
+                _head = n->entry[n->count - 1]->next;
+            }
+            while (n->count) {
+                n->erase(0);
+                --_size;
+            }
+        }
+        else {
+            while (n->count) {
+                doRelease(n->child[0], false);
+            }
+        }
+        if (n->parent) {
+            order_type pr = 0;
+            while (n->parent->child[pr] != n)
+                pr++;
+            n->parent->erase(pr);
+        }
+        if (flag && n->parent && n->parent->count == 0)
+            doRelease(n->parent);
+        DELETE(n);
+        --_node_count;
+        if (_node_count == 0) {
+            _root = nullptr;
         }
     }
 };  // namespace my
