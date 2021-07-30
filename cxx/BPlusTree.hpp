@@ -4,11 +4,28 @@
 #include <iostream>
 #include <stdexcept>
 #include <string.h>
+#include <utility>
 
 namespace my {
 
+#define DELETE(ptr)        \
+    do {                   \
+        if (ptr) {         \
+            delete ptr;    \
+            ptr = nullptr; \
+        }                  \
+    } while (0)
+
+#define DELETE_ARRAY(arrPtr)  \
+    do {                      \
+        if (arrPtr) {         \
+            delete[] arrPtr;  \
+            arrPtr = nullptr; \
+        }                     \
+    } while (0)
+
 #define MOVE_NODE(des, des_idx, src, src_idx)                  \
-    {                                                          \
+    do {                                                       \
         des->key[des_idx] = src->key[src_idx];                 \
         if (des->type) {                                       \
             des->entry[des_idx]      = src->entry[src_idx];    \
@@ -18,24 +35,15 @@ namespace my {
             des->child[des_idx]         = src->child[src_idx]; \
             des->child[des_idx]->parent = des;                 \
         }                                                      \
-    }
-
-template <class T1, class T2> struct Pair {
-    typedef T1 first_type;
-    typedef T2 second_type;
-    T1         first;
-    T2         second;
-    Pair(const T1& t1) : first(t1){};
-    Pair(const T1& t1, const T2& t2) : first(t1), second(t2){};
-};
+    } while (0)
 
 template <class Key, class T> class BPlusTree {
 public:
-    typedef Key                key_type;
-    typedef T                  data_type;
-    typedef Pair<const Key, T> value_type;
-    typedef short              order_type;
-    typedef unsigned int       size_type;
+    typedef Key                     key_type;
+    typedef T                       data_type;
+    typedef std::pair<const Key, T> value_type;
+    typedef short                   order_type;
+    typedef unsigned int            size_type;
 
 protected:
     typedef unsigned int node_size_type;  // no need bigger than size_type
@@ -84,7 +92,7 @@ protected:
 
     class BTIterator {
     private:
-        ListPtr node;
+        ListPtr node = nullptr;
         BTPair* pair = nullptr;
 
     public:
@@ -95,9 +103,24 @@ protected:
         };
 
         ~BTIterator() {
-            if (pair) {
-                delete pair;
-            }
+            DELETE(pair);
+        }
+
+        BTIterator(const BTIterator& it) {
+            node = it.node;
+            DELETE(pair);
+            if (it.node)
+                pair = new BTPair(it.pair->first, it.pair->second);
+        }
+
+        BTIterator& operator=(const BTIterator& it) {
+            if (this == &it)
+                return *this;
+            node = it.node;
+            DELETE(pair);
+            if (it.node)
+                pair = new BTPair(it.pair->first, it.pair->second);
+            return *this;
         }
 
         BTPair* operator->() {
@@ -131,8 +154,7 @@ protected:
             }
             else {
                 node = node->next;
-                if (pair)
-                    delete pair;
+                DELETE(pair);
                 pair = node ? new BTPair(*node->key, node->data) : nullptr;
             }
         }
@@ -143,8 +165,7 @@ protected:
             }
             else {
                 node = node->prior;
-                if (pair)
-                    delete pair;
+                DELETE(pair);
                 pair = node ? new BTPair(*node->key, node->data) : nullptr;
             }
         }
@@ -152,13 +173,13 @@ protected:
 
     class BTNode {
     public:
-        const bool type;  // 0: inner node; 1: leaf node
-        key_type*  key    = nullptr;
-        BTNode**   child  = nullptr;
-        ListPtr*   entry  = nullptr;
-        BTNode*    parent = nullptr;
-        order_type count  = 0;
-        order_type order;
+        const order_type order;
+        const bool       type;  // 0: inner node; 1: leaf node
+        key_type*        key    = nullptr;
+        BTNode**         child  = nullptr;
+        ListPtr*         entry  = nullptr;
+        BTNode*          parent = nullptr;
+        order_type       count  = 0;
         BTNode(order_type m, bool type) : order(m), type(type) {
             if (m < 3) {
                 throw std::runtime_error("order of BPlusTree must >= 3");
@@ -170,12 +191,59 @@ protected:
                 child = new BTNode*[m];
         }
         ~BTNode() {
-            if (key)
-                delete[] key;
-            if (type && entry)
-                delete[] entry;
-            else if (child)
-                delete[] child;
+            DELETE_ARRAY(key);
+            if (type)
+                DELETE_ARRAY(entry);
+            else
+                DELETE_ARRAY(child);
+        }
+
+        BTNode(const BTNode& n) {
+            this->order  = n.order;
+            this->type   = n.type;
+            this->count  = n.count;
+            this->parent = n.parent;
+            DELETE_ARRAY(key);
+            DELETE_ARRAY(entry);
+            DELETE_ARRAY(child);
+            if (n.key && order > 0) {
+                key = new key_type[order];
+                memcpy(key, n.key, order * sizeof(key_type));
+            }
+            if (type && n.entry && order > 0) {
+                entry = new ListPtr[order];
+                memcpy(entry, n.entry, order * sizeof(ListPtr));
+            }
+            else if (n.child && order > 0) {
+                child = new BTNode*[order];
+                memcpy(child, n.child, order * sizeof(BTNode*));
+            }
+        }
+
+        BTNode& operator=(const BTNode& n) {
+            if (this == &n) {
+                return *this;
+            }
+            this->order  = n.order;
+            this->type   = n.type;
+            this->count  = n.count;
+            this->parent = n.parent;
+            DELETE_ARRAY(key);
+            DELETE_ARRAY(entry);
+            DELETE_ARRAY(child);
+            if (n.key && order > 0) {
+                key = new key_type[order];
+                memcpy(key, n.key, order * sizeof(key_type));
+            }
+            if (type && n.entry && order > 0) {
+                entry = new ListPtr[order];
+                memcpy(entry, n.entry, order * sizeof(ListPtr));
+            }
+            else if (n.child && order > 0) {
+                child = new BTNode*[order];
+                memcpy(child, n.child, order * sizeof(BTNode*));
+            }
+            return *this;
         }
 
         order_type search(const key_type& k) const {
@@ -215,11 +283,10 @@ protected:
 
         void erase(const order_type& r, bool flag = true) {
             if (type && flag) {
-                delete entry[r];
-                entry[r] = nullptr;
+                DELETE(entry[r]);
             }
             for (order_type i = r; i < count - 1; ++i) {
-                MOVE_NODE(this, i, this, i + 1)
+                MOVE_NODE(this, i, this, i + 1);
             }
             if (r == 0) {
                 fresh();
@@ -293,6 +360,10 @@ public:
         return BTIterator(nullptr);
     }
 
+    BTIterator begin() {
+        return BTIterator(_head);
+    }
+
     BTIterator find(const key_type& key) {
         BTNode* v = _root;
         if (v == nullptr) {
@@ -340,6 +411,18 @@ public:
         }
     }
 
+    /* can not bind iterator to specific BPlusTree */
+    // bool insert(const BTIterator& iterator) {
+    //     if (iterator != end())
+    //         return insert(iterator->first, iterator->second);
+    //     else
+    //         return false;
+    // }
+
+    bool insert(const value_type& pair) {
+        return insert(pair.first, pair.second);
+    }
+
     bool erase(const key_type& key) {
         BTNode* v = _root;
         if (v == nullptr)
@@ -359,6 +442,24 @@ public:
                 return false;
         }
     }
+
+    /* can not bind iterator to specific BPlusTree */
+    // bool erase(BTIterator& iterator) {
+    //     if (iterator != end()) {
+    //         key_type   k    = iterator->first;
+    //         BTIterator temp = iterator;
+    //         ++temp;
+    //         if (erase(k)) {
+    //             iterator = temp;
+    //             return true;
+    //         }
+    //         else
+    //             return false;
+    //     }
+    //     else
+    //         return false;
+    // }
+
     /* for debug */
     void print() {
         BTNode*             v = nullptr;
@@ -446,8 +547,7 @@ private:
             if (pr > 0 && p->child[pr - 1]->count > (_order + 1) / 2) {
                 BTNode* lb = p->child[pr - 1];
                 if (n->type) {
-                    delete n->entry[r];
-                    n->entry[r] = nullptr;
+                    DELETE(n->entry[r]);
                 }
                 for (order_type i = r; i > 0; --i) {
                     MOVE_NODE(n, i, n, i - 1);
@@ -473,7 +573,7 @@ private:
                 }
                 lb->count += n->count;
                 doErase(p, pr);
-                delete n;
+                DELETE(n);
                 n = lb;
                 _node_count--;
             }
@@ -485,17 +585,19 @@ private:
                 }
                 n->count += rb->count;
                 doErase(p, pr + 1);
-                delete rb;
+                DELETE(rb);
                 _node_count--;
             }
         }
         if (p && p->count == 1) {
             n->parent = nullptr;
-            delete p;
+            DELETE(p);
             _root = n;
             _node_count--;
         }
     }
 };  // namespace my
 #undef MOVE_NODE
+#undef DELETE_ARRAY
+#undef DELETE
 }  // namespace my

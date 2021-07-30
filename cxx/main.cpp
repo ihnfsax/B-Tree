@@ -53,13 +53,10 @@ int main(int argc, char* argv[]) {
     btree.print();
     cout << btree.size() << "\n";
     cout << btree.ncount() << "\n";
-    auto x = btree.find(5);
-    for (; x != btree.end(); ++x) {
-        cout << x->first << x->second << " ";
-    }
-    auto x2    = btree.find(7);
-    x2->second = "hello";
+    auto it1 = btree.begin();
+    auto it2 = btree.begin();
+    ++it1;
+    it2 = it1;
     btree.print();
-    cout << "\n";
     return 0;
 }
