@@ -408,6 +408,62 @@ public:
         }
     }
 
+    BTIterator findMax(const key_type& upperBound) {
+        BTNode* v = _root;
+        if (v == nullptr) {
+            return BTIterator(nullptr);
+        }
+        while (true) {
+            order_type r = v->search(upperBound);
+            if (v->type && r >= 0) {
+                return BTIterator(v->entry[r]);
+            }
+            else if (!v->type && r != -1)
+                v = v->child[r];
+            else
+                return BTIterator(nullptr);
+        }
+    }
+
+    BTIterator findMax() {
+        BTNode* v = _root;
+        if (v == nullptr) {
+            return BTIterator(nullptr);
+        }
+        while (true) {
+            order_type r = v->count - 1;
+            if (v->type && r >= 0) {
+                return BTIterator(v->entry[r]);
+            }
+            else if (!v->type && r != -1)
+                v = v->child[r];
+            else
+                return BTIterator(nullptr);
+        }
+    }
+
+    BTIterator findMin(const key_type& lowerBound) {
+        BTNode* v = _root;
+        if (v == nullptr) {
+            return BTIterator(nullptr);
+        }
+        while (true) {
+            order_type r = v->search(lowerBound);
+            if (v->type && r >= 0) {
+                if (v->key[r] == lowerBound)
+                    return BTIterator(v->entry[r]);
+                else if (r < v->count - 1)
+                    return BTIterator(v->entry[r + 1]);
+                else
+                    return BTIterator(nullptr);
+            }
+            else if (!v->type && r != -1)
+                v = v->child[r];
+            else
+                return BTIterator(nullptr);
+        }
+    }
+
     bool insert(const key_type& key, const data_type& data) {
         BTNode* v = _root;
         if (v == nullptr) { /* only for _root */

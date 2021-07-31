@@ -43,5 +43,21 @@ int main(int argc, char* argv[]) {
     btree2.print();
     delete btree;
     btree2.print();
+    auto it1 = btree2.findMax();
+    if (it1 != btree2.end()) {
+        cout << it1->first << ":" << it1->second << "\n";
+    }
+    auto it2 = btree2.findMax(-3);
+    if (it2 != btree2.end()) {
+        cout << it2->first << ":" << it2->second << "\n";
+    }
+    auto it3 = btree2.findMin(-7);
+    if (it3 != btree2.end()) {
+        cout << it3->first << ":" << it3->second << "\n";
+    }
+    auto it4 = btree2.findMin(20);
+    if (it4 != btree2.end()) {
+        cout << it4->first << ":" << it4->second << "\n";
+    }
     return 0;
 }
