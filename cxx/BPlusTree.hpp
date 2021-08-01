@@ -2,7 +2,7 @@
 #include <cassert>  // DEBUG
 #include <deque>    // DEBUG
 #include <functional>
-#include <iostream>
+#include <iostream>  // DEBUG
 #include <stdexcept>
 #include <string.h>
 #include <utility>
@@ -327,8 +327,8 @@ protected:
         }
     };
 
-    size_type      _size       = 0;  // 数据数量
-    node_size_type _node_count = 0;  // 节点数量
+    size_type      _size       = 0;  // data number
+    node_size_type _node_count = 0;  // node number
     order_type     _order;
     BTNode*        _root = nullptr;
     ListPtr        _head = nullptr;
@@ -513,9 +513,9 @@ public:
             order_type r = v->search(key);
             if (v->type && r >= 0 && v->key[r] == key) {
                 doErase(v, r);
-                if (v->entry[0]->prior == nullptr)
-                    _head = v->entry[0];
                 _size--;
+                if (_size > 0 && v->entry[0]->prior == nullptr)
+                    _head = v->entry[0];
                 return true;
             }
             else if (!v->type && r != -1)
@@ -564,12 +564,12 @@ public:
         if (_root != nullptr) {
             pnodes.push_back(_root);
             while (!pnodes.empty()) {
-                std::cout << "Level " << l++ << ":" << pnodes.size() << " ";
+                std::cout << "\e[1;38;5;45mLevel " << l++ << ":" << pnodes.size() << "\e[0m ";
                 while (!pnodes.empty()) {
                     v = *(pnodes.begin());
                     pnodes.pop_front();
                     if (v->parent) {
-                        std::cout << "(" << v->parent->key[0] << ")";
+                        std::cout << "\e[1;38;5;113m(" << v->parent->key[0] << ")\e[0m";
                     }
                     std::cout << "|";
                     for (order_type i = 0; i < v->count; ++i) {
@@ -582,7 +582,7 @@ public:
                         }
                     }
                     if (!pnodes.empty())
-                        std::cout << "-----";
+                        std::cout << "\e[1;38;5;226m-----\e[0m";
                 }
                 std::cout << "\n";
                 pnodes = cnodes;
@@ -594,7 +594,7 @@ public:
         while (k) {
             std::cout << "(" << *(k->key) << ":" << k->data << ")";
             if (k->next)
-                std::cout << "-->";
+                std::cout << "\e[1;38;5;226m-->\e[0m";
             k = k->next;
         }
         std::cout << "\nSize: " << _size << "\nNode Count: " << _node_count << "\n";
@@ -637,10 +637,16 @@ protected:
         return flag ? n : n2;
     }
 
-    void doErase(BTNode* const n, const order_type& r) {
+    void doErase(BTNode*& n, const order_type& r) { /* must be reference of pointer */
         BTNode* p = n->parent;
         if (p == nullptr || n->count > (_order + 1) / 2) {
             n->erase(r);
+            if (n->count == 0) { /* root is the only node in the tree */
+                _node_count--;
+                DELETE(n);
+                _root = nullptr;
+                _head = nullptr;
+            }
         }
         else {
             order_type pr = 0;
