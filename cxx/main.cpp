@@ -9,6 +9,7 @@ using namespace std;
 
 int main(int argc, char* argv[]) {
     BPlusTree<int, string>* btree = new BPlusTree<int, string>(5);
+    btree->clear();
     cout << btree->insert(1, "123") << "\n";
     cout << btree->insert(3, "hell") << "\n";
     cout << btree->insert(-1, "before") << "\n";

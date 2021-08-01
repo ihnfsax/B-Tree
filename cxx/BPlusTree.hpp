@@ -1,5 +1,6 @@
 #pragma once
-#include <deque>  // debug
+#include <cassert>  // DEBUG
+#include <deque>    // DEBUG
 #include <functional>
 #include <iostream>
 #include <stdexcept>
@@ -63,8 +64,7 @@ protected:
         }
         /* flag: true: insert before, false: insert after */
         void insert(ListNode* p, bool flag) {
-            if (p == nullptr)
-                throw std::runtime_error("try to insert a null node");
+            assert(p != nullptr); /* DEBUG */
             if (flag) {
                 p->prior = this->prior;
                 p->next  = this;
@@ -182,9 +182,7 @@ protected:
         order_type       count  = 0;
 
         BTNode(order_type m, bool type) : order(m), type(type) {
-            if (m < 3) {
-                throw std::runtime_error("order of BPlusTree must >= 3");
-            }
+            assert(m >= 3); /* DEBUG */
             key = new key_type[m];
             if (type)
                 entry = new ListPtr[m];
@@ -260,8 +258,7 @@ protected:
         }
 
         order_type insert(const order_type& r, const key_type& k, const data_type* const d = nullptr) {
-            if (type && d == nullptr)
-                throw std::runtime_error("try to insert a nullptr to data field");
+            assert(!(type && d == nullptr)); /* DEBUG */
             for (order_type i = count - 1; i > r; --i) {
                 MOVE_NODE(this, i + 1, this, i);
             }
@@ -308,8 +305,7 @@ protected:
         }
 
         BTNode* splitSelf(order_type s) {
-            if (s >= count - 1 || s < -1)
-                throw std::runtime_error("can't split node");
+            assert(s >= -1 && s < count - 1); /* DEBUG */
             BTNode* node = new BTNode(order, type);
             node->count  = count - s - 1;
             memcpy(node->key, &key[s + 1], node->count * sizeof(key_type));
@@ -345,10 +341,13 @@ public:
     };
 
     ~BPlusTree() {
-        doRelease(_root);
-        if (_root != nullptr || _head != nullptr || _size != 0 || _node_count != 0) {
-            throw std::runtime_error("something terrible happened");  // TODO
-        }
+        if (_root)
+            doRelease(_root);
+        /* DEBUG */
+        assert(_root == nullptr);
+        assert(_head == nullptr);
+        assert(_size == 0);
+        assert(_node_count == 0);
     }
 
     BPlusTree(const BPlusTree<Key, T>& tree) {
@@ -526,6 +525,20 @@ public:
         }
     }
 
+    bool empty() const {
+        return _size == 0;
+    }
+
+    void clear() {
+        if (_root)
+            doRelease(_root);
+        /* DEBUG */
+        assert(_root == nullptr);
+        assert(_head == nullptr);
+        assert(_size == 0);
+        assert(_node_count == 0);
+    }
+
     /* can not bind iterator to specific BPlusTree */
     // bool erase(BTIterator& iterator) {
     //     if (iterator != end()) {
@@ -543,7 +556,7 @@ public:
     //         return false;
     // }
 
-    /* for debug */
+    /* DEBUG */
     void print() {
         BTNode*             v = nullptr;
         std::deque<BTNode*> pnodes, cnodes;
@@ -587,7 +600,7 @@ public:
         std::cout << "\nSize: " << _size << "\nNode Count: " << _node_count << "\n";
     }
 
-private:
+protected:
     BTNode* doInsert(BTNode* const n, order_type& r, const key_type& k, const data_type& d) {
         if (n->count < _order) {
             r = n->insert(r, k, &d);
@@ -773,7 +786,7 @@ private:
             }
         }
     }
-    /* for debug */
+    /* DEBUG */
     BTNode* doSearch(const key_type& k) {
         BTNode* v = _root;
         if (v == nullptr) {
