@@ -4,6 +4,8 @@ project(BPlusTree VERSION 0.1.0)
 include(CTest)
 enable_testing()
 
+# set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ..)
+
 add_compile_options(-g)
 aux_source_directory(. DIRSRCS)
 add_executable(BPlusTree ${DIRSRCS})

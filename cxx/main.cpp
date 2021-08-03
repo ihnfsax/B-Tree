@@ -1,12 +1,31 @@
 #include "BPlusTree.hpp"
+#include "Serialization.hpp"
 #include "TestBPlusTree.hpp"
 #include <iostream>
 #include <map>
 #include <string>
+#include <sys/stat.h>
 #include <vector>
+
+#define RWRWRW (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
 
 using namespace my;
 using namespace std;
+
+void printMode(const struct stat* statbuf) {
+    printf("File Permissions: \t");
+    printf((S_ISDIR(statbuf->st_mode)) ? "d" : "-");
+    printf((statbuf->st_mode & S_IRUSR) ? "r" : "-");
+    printf((statbuf->st_mode & S_IWUSR) ? "w" : "-");
+    printf((statbuf->st_mode & S_IXUSR) ? "x" : "-");
+    printf((statbuf->st_mode & S_IRGRP) ? "r" : "-");
+    printf((statbuf->st_mode & S_IWGRP) ? "w" : "-");
+    printf((statbuf->st_mode & S_IXGRP) ? "x" : "-");
+    printf((statbuf->st_mode & S_IROTH) ? "r" : "-");
+    printf((statbuf->st_mode & S_IWOTH) ? "w" : "-");
+    printf((statbuf->st_mode & S_IXOTH) ? "x" : "-");
+    printf("\n");
+}
 
 int main(int argc, char* argv[]) {
 
@@ -62,7 +81,13 @@ int main(int argc, char* argv[]) {
     // if (it4 != btree2.end()) {
     //     cout << it4->first << ":" << it4->second << "\n";
     // }
-    TestBPlusTree test;
-    test.checkAll();
+    // TestBPlusTree test;
+    // test.checkAll();
+    BPlusTree<int, string> btree(5);
+    btree.insert(1, "faf");
+    struct stat s;
+    stat("./", &s);
+    printMode(&s);
+    cout << Serialization::serialization(btree, "./btree.bpt", RWRWRW) << "\n";
     return 0;
 }

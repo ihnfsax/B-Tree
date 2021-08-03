@@ -39,6 +39,8 @@ namespace my {
     } while (0)
 
 template <class Key, class T> class BPlusTree {
+    friend class Serialization;
+
 public:
     typedef Key                     key_type;
     typedef T                       data_type;
