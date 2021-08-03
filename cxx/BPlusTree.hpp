@@ -310,7 +310,10 @@ protected:
             assert(s >= -1 && s < count - 1); /* DEBUG */
             BTNode* node = new BTNode(order, type);
             node->count  = count - s - 1;
-            memcpy(node->key, &key[s + 1], node->count * sizeof(key_type));
+            /* can not use memcpy here */
+            for (order_type i = 0; i < node->count; ++i) {
+                node->key[i] = key[s + i + 1];
+            }
             if (type) {
                 memcpy(node->entry, &entry[s + 1], node->count * sizeof(ListPtr));
                 for (order_type i = 0; i < node->count; ++i) {

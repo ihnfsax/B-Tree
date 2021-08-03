@@ -83,11 +83,22 @@ int main(int argc, char* argv[]) {
     // }
     // TestBPlusTree test;
     // test.checkAll();
-    BPlusTree<int, string> btree(5);
-    btree.insert(1, "faf");
-    struct stat s;
-    stat("./", &s);
-    printMode(&s);
-    cout << Serialization::serialization(btree, "./btree.bpt", RWRWRW) << "\n";
+    // BPlusTree<int, string> btree(5);
+    // for (int i = 0; i < 100000; ++i) {
+    //     btree.insert(i, "aaaa");
+    // }
+    // btree.print();
+    // struct stat s;
+    // stat("./", &s);
+    // printMode(&s);
+    // Serialization::serialization(btree, "./btree.bpt", RWRWRW);
+    BPlusTree<string, string> btree(5);
+    btree.insert("AA", "a");
+    btree.insert("BB", "b");
+    btree.insert("CC", "c");
+    btree.insert("DD", "d");
+    btree.insert("EE", "e");
+    btree.insert("FF", "f");
+    btree.print();
     return 0;
 }
