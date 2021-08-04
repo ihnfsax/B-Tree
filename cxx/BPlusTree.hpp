@@ -312,19 +312,7 @@ protected:
             node->count  = count - s - 1;
             /* can not use memcpy here */
             for (order_type i = 0; i < node->count; ++i) {
-                node->key[i] = key[s + i + 1];
-            }
-            if (type) {
-                memcpy(node->entry, &entry[s + 1], node->count * sizeof(ListPtr));
-                for (order_type i = 0; i < node->count; ++i) {
-                    node->entry[i]->key = &node->key[i];
-                }
-            }
-            else {
-                memcpy(node->child, &child[s + 1], node->count * sizeof(BTNode*));
-                for (order_type i = 0; i < node->count; ++i) {
-                    node->child[i]->parent = node;
-                }
+                MOVE_NODE(node, i, this, s + i + 1);
             }
             count        = s + 1;
             node->parent = parent;
