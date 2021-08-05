@@ -7,5 +7,5 @@ cd build && cmake ..
 make
 ```
 
-See `main.cpp` for the use of the function.
+See `main.cpp` for usage of the functions.
 
