@@ -354,8 +354,10 @@ public:
         this->_size       = tree._size;
         this->_node_count = tree._node_count;
         this->_order      = tree._order;
-        this->_head       = nullptr;
-        this->_root       = doCopy(tree._root, nullptr, 0, _head);
+        if (_root)
+            doRelease(_root);
+        this->_head = nullptr;
+        this->_root = doCopy(tree._root, nullptr, 0, _head);
     }
 
     BPlusTree& operator=(const BPlusTree& tree) {
@@ -365,8 +367,10 @@ public:
         this->_size       = tree._size;
         this->_node_count = tree._node_count;
         this->_order      = tree._order;
-        this->_head       = nullptr;
-        this->_root       = doCopy(tree._root, nullptr, 0, _head);
+        if (_root)
+            doRelease(_root);
+        this->_head = nullptr;
+        this->_root = doCopy(tree._root, nullptr, 0, _head);
         return *this;
     }
 
