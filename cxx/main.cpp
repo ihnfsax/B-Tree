@@ -95,5 +95,8 @@ int main(int argc, char* argv[]) {
     // BPlusTree<string, string>* btree2 = Serialization::deserialization<string, string>("./btree.bpt");
     // btree2->print();
     // delete btree2;
+    map<int, string> s;
+    auto             it = s.begin();
+    (*it).second        = "fa";
     return 0;
 }

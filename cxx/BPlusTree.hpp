@@ -125,11 +125,18 @@ protected:
             return *this;
         }
 
-        BTPair* operator->() {
+        BTPair* operator->() const {
             if (pair == nullptr) {
                 throw std::runtime_error("try to get value from nullptr");
             }
             return pair;
+        }
+
+        BTPair operator*() const {
+            if (pair == nullptr) {
+                throw std::runtime_error("try to get value from nullptr");
+            }
+            return *pair;
         }
 
         bool operator==(const BTIterator& other) const {
