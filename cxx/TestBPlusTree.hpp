@@ -52,14 +52,15 @@ public:
         fflush(fp);
         measureEffectOfOrder(scale2);
         fflush(fp);
-        fprintf(fp, "Stage 4 : measure effect of scale on serialization\n");
-        fprintf(fp, "          and deserialization time cost (%d keys per node)\n", DEFAULT_ORDER);
+        fprintf(fp,
+                "Stage 4 : measure effect of scale on serialization and deserialization time cost (%d keys per node)\n",
+                DEFAULT_ORDER);
         fflush(fp);
         mearsureSerializeCostWithScale();
         fflush(fp);
         int scale3 = 1000000;
-        fprintf(fp, "Stage 5 : measure effect of order on serialization\n");
-        fprintf(fp, "          and deserialization time cost (%d entries)\n", scale3);
+        fprintf(fp, "Stage 5 : measure effect of order on serialization and deserialization time cost (%d entries)\n",
+                scale3);
         fflush(fp);
         mearsureSerializeCostWithOrder(scale3);
         fflush(fp);
