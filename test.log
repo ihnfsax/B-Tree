@@ -1,0 +1,22 @@
+Stage 1 : check class validity (1000000entries, 128 keys per node) 
+      ├── insert and erase function works fine
+      ├── copy-constructor works fine
+      └── destrcutor works fine
+Stage 2 : measure time complexity (128 keys per node) 
+      ├── scale:        10  insert:  0.00000651s  erase:  0.00000134s
+      ├── scale:       100  insert:  0.00002098s  erase:  0.00003351s
+      ├── scale:      1000  insert:  0.03173242s  erase:  0.00160319s
+      ├── scale:     10000  insert:  0.00527499s  erase:  0.00655223s
+      ├── scale:    100000  insert:  0.06198118s  erase:  0.06901346s
+      ├── scale:   1000000  insert:  0.82855417s  erase:  0.68236543s
+      ├── scale:  10000000  insert:  9.15155667s  erase:  6.93858353s
+      └── finished
+Stage 3 : measure effect of order (1000000 entries) 
+      ├── order:         8  insert:  0.28511336s  erase:  0.17284294s
+      ├── order:        16  insert:  0.30703865s  erase:  0.16191667s
+      ├── order:        32  insert:  0.38330515s  erase:  0.17741471s
+      ├── order:        64  insert:  0.55666309s  erase:  0.25140078s
+      ├── order:       128  insert:  1.05222774s  erase:  0.33744507s
+      ├── order:       256  insert:  1.15998901s  erase:  0.45994642s
+      ├── order:       512  insert:  2.05989864s  erase:  0.71915779s
+      ├── order:      1024  insert:  3.66129837s  erase:  1.61091750s
