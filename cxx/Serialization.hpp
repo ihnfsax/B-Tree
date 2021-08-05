@@ -4,12 +4,13 @@
 // #include <concepts>
 #include <fcntl.h>
 #include <map>
+#include <sys/stat.h>
 #include <typeinfo>
 #include <unistd.h>
 
 using namespace std;
 namespace my {
-
+#define RWRWRW (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
 #define TP_UNKNOWN 0x00    // unknown type
 #define TP_INT 0x01        // int
 #define TP_STLSTRING 0x02  // std::string
@@ -42,12 +43,12 @@ private:
 
 public:
     template <class Key, class T>
-    static bool serialization(const BPlusTree<Key, T>& btree, const std::string& filePath, const mode_t& mode) {
-        return serialization(btree, filePath.c_str(), mode);
+    static off_t serialize(const BPlusTree<Key, T>& btree, const std::string& filePath, const mode_t& mode = RWRWRW) {
+        return serialize(btree, filePath.c_str(), mode);
     }
 
     template <class Key, class T>
-    static void serialization(const BPlusTree<Key, T>& btree, const char* filePath, const mode_t& mode) {
+    static off_t serialize(const BPlusTree<Key, T>& btree, const char* filePath, const mode_t& mode = RWRWRW) {
         int fd;
         if ((fd = open(filePath, O_WRONLY | O_CREAT | O_TRUNC, mode | S_IRUSR | S_IWUSR)) == -1)
             throw std::runtime_error("open error");
@@ -55,15 +56,19 @@ public:
         writeHeader(fd, btree, h);
         map<const BTNode<Key, T>* const, FNode> nodeMap;
         writeNode<Key, T>(fd, btree._root, nodeMap, h);
+        off_t end;
+        if ((end = lseek(fd, 0, SEEK_END)) == -1)
+            throw std::runtime_error("lseek error: get file size");
         if (close(fd) == -1)
             throw std::runtime_error("close error");
+        return end;
     }
 
-    template <class Key, class T> static BPlusTree<Key, T>* deserialization(const std::string& filePath) {
-        return deserialization<Key, T>(filePath.c_str());
+    template <class Key, class T> static BPlusTree<Key, T>* deserialize(const std::string& filePath) {
+        return deserialize<Key, T>(filePath.c_str());
     }
 
-    template <class Key, class T> static BPlusTree<Key, T>* deserialization(const char* filePath) {
+    template <class Key, class T> static BPlusTree<Key, T>* deserialize(const char* filePath) {
         int fd;
         if ((fd = open(filePath, O_RDONLY)) == -1)
             throw std::runtime_error("open error");

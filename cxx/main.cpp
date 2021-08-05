@@ -81,19 +81,19 @@ int main(int argc, char* argv[]) {
     // if (it4 != btree2.end()) {
     //     cout << it4->first << ":" << it4->second << "\n";
     // }
-    // TestBPlusTree test;
-    // test.checkAll();
+    TestBPlusTree test;
+    test.checkAll("testbpt.log");
     // struct stat s;
     // stat("./", &s);
     // printMode(&s);
-    BPlusTree<string, string> btree(7);
-    for (int i = 0; i < 100; ++i) {
-        btree.insert(to_string(i), "aaaa");
-    }
-    btree.print();
-    Serialization::serialization(btree, "./btree.bpt", RWRWRW);
-    BPlusTree<string, string>* btree2 = Serialization::deserialization<string, string>("./btree.bpt");
-    btree2->print();
-    delete btree2;
+    // BPlusTree<string, string> btree(7);
+    // for (int i = 0; i < 100; ++i) {
+    //     btree.insert(to_string(i), "aaaa");
+    // }
+    // btree.print();
+    // Serialization::serialization(btree, "./btree.bpt", RWRWRW);
+    // BPlusTree<string, string>* btree2 = Serialization::deserialization<string, string>("./btree.bpt");
+    // btree2->print();
+    // delete btree2;
     return 0;
 }
