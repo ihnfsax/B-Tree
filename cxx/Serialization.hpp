@@ -113,14 +113,15 @@ private:
         h.sizeSize  = (char)sizeof(size_type<Key, T>);
         h.offSize   = (char)sizeof(off_t);
         char* h2;
-        if ((h2 = new char[2 * h.sizeSize + h.orderSize]) == nullptr)
+        if ((h2 = new char[3 * h.sizeSize + h.orderSize]) == nullptr)
             throw std::runtime_error("can not allocate memory for header (part 2)");
         memcpy(h2, &btree._order, h.orderSize);
         memcpy(h2 + h.orderSize, &btree._size, h.sizeSize);
         memcpy(h2 + h.orderSize + h.sizeSize, &btree._node_count, h.sizeSize);
+        memcpy(h2 + h.orderSize + 2 * h.sizeSize, &btree._height, h.sizeSize);
         if (write(fd, &h, sizeof(BptHeader)) == -1)
             throw std::runtime_error("write error: header (part 1)");
-        if (write(fd, h2, 2 * h.sizeSize + h.orderSize) == -1)
+        if (write(fd, h2, 3 * h.sizeSize + h.orderSize) == -1)
             throw std::runtime_error("write error: header (part 2)");
         delete[] h2;
     }
@@ -200,6 +201,8 @@ private:
             throw std::runtime_error("read error: size of BPlusTree");
         if (read(fd, &(btree->_node_count), h.sizeSize) != h.sizeSize)
             throw std::runtime_error("read error: node count of BPlusTree");
+        if (read(fd, &(btree->_height), h.sizeSize) != h.sizeSize)
+            throw std::runtime_error("read error: height of BPlusTree");
     }
 
     template <class Key, class T> static void checkHeader(const BptHeader& h) {

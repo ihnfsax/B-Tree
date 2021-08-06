@@ -1,31 +1,34 @@
 #pragma once
 #include "BPlusTree.hpp"
 #include "Serialization.hpp"
-#include <chrono>
-#include <cstdlib>
-#include <iomanip>
-#include <time.h>
+#include <random>
+#include <sys/time.h>
 
-#define DEFAULT_ORDER 128
+#define REPEAT 200
 #define STRING_SIZE 1
-#define MAX_SIZE 10000000
-
-const int roundSize[] = { 10, 100, 1000, 10000, 100000, 1000000, 10000000 };  // 20000000, 30000000, 40000000 };
-const int orderSize[] = { 8, 16, 32, 64, 128, 256, 512, 1024, 2048 };
+#define DEFAULT_ORDER 64
 
 using namespace my;
 using namespace std;
 
+const int treeSize[]  = { 10,     100,    1000,    10000,   40000,   70000,    100000,
+                         400000, 700000, 1000000, 4000000, 7000000, 10000000, 30000000 };
+const int orderSize[] = { 8, 16, 32, 64, 128, 256, 512, 1024, 2048 };
+
 class TestBPlusTree {
 private:
-    FILE* fp = stdout;
-
+    const size_t tmidx = sizeof(treeSize) / sizeof(int) - 1;
+    const size_t omidx = sizeof(orderSize) / sizeof(int) - 1;
+    FILE*        fp    = stdout;
     TestBPlusTree(const TestBPlusTree& t) {}
 
 public:
-    TestBPlusTree() {
-        srand(time(NULL));
-    };
+    TestBPlusTree(const char* filePath = nullptr) {
+        if (filePath == nullptr)
+            fp = stdout;
+        else
+            fp = fopen(filePath, "w");
+    }
 
     ~TestBPlusTree() {
         if (fp && fp != stdout) {
@@ -33,156 +36,152 @@ public:
         }
     }
 
-    void checkAll(const char* filePath = nullptr) {
-        if (filePath == nullptr)
-            fp = stdout;
-        else
-            fp = fopen(filePath, "w");
-        int scale = 1000000;
-        fprintf(fp, "Stage 1 : check class validity (%dentries, %d keys per node) \n", scale, DEFAULT_ORDER);
-        fflush(fp);
-        checkValidity(scale);
-        fflush(fp);
-        fprintf(fp, "Stage 2 : measure time complexity (%d keys per node) \n", DEFAULT_ORDER);
-        fflush(fp);
-        measureTimeComplexity();
-        fflush(fp);
-        int scale2 = 1000000;
-        fprintf(fp, "Stage 3 : measure effect of order (%d entries) \n", scale2);
-        fflush(fp);
-        measureEffectOfOrder(scale2);
-        fflush(fp);
-        fprintf(fp,
-                "Stage 4 : measure effect of scale on serialization and deserialization time cost (%d keys per node)\n",
-                DEFAULT_ORDER);
-        fflush(fp);
-        mearsureSerializeCostWithScale();
-        fflush(fp);
-        int scale3 = 1000000;
-        fprintf(fp, "Stage 5 : measure effect of order on serialization and deserialization time cost (%d entries)\n",
-                scale3);
-        fflush(fp);
-        mearsureSerializeCostWithOrder(scale3);
-        fflush(fp);
-    };
-
-private:
-    void checkValidity(const int& scale) {
-        BPlusTree<int, string>*           btree = new BPlusTree<int, string>(DEFAULT_ORDER);
-        BPlusTree<int, string>::size_type s     = 0;
-        for (int i = 0; i < scale; ++i) {
-            bool flag = rand() % 2 == 0;
-            if (flag) {
-                btree->insert(i, string(STRING_SIZE, 'a'));
-                s++;
-                if (s != btree->size()) {
-                    fprintf(fp, "      ├── checkValidity: insert error\n");
-                    exit(1);
-                }
-            }
-            else if (btree->erase(rand() % (i + 1))) {
-                s--;
-                if (s != btree->size()) {
-                    fprintf(fp, "      ├── checkValidity: erase error\n");
-                    exit(1);
-                }
-            }
+    void testAll(const int& stage = 0) {
+        if (stage == 1 || stage <= 0 || stage > 5) {
+            fprintf(fp, "Stage 1 : measure time complexity (%d keys per node) \n", DEFAULT_ORDER);
+            measureTimeComplexity();
         }
-        fprintf(fp, "      ├── insert and erase function works fine\n");
-        BPlusTree<int, string> btree_copy = *btree;
-        fprintf(fp, "      ├── copy-constructor works fine\n");
-        delete btree;
-        fprintf(fp, "      └── destrcutor works fine\n");
+        if (stage == 2 || stage <= 0 || stage > 5) {
+            int scale = 2000000;
+            fprintf(fp, "Stage 2 : measure effect of order (%d entries) \n", scale);
+            measureEffectOfOrder(scale);
+        }
+        if (stage == 3 || stage <= 0 || stage > 5) {
+            fprintf(fp, "Stage 3 : measure serialization and deserialization cost (%d keys per node)\n", DEFAULT_ORDER);
+            mearsureSerialize();
+        }
     }
 
     void measureTimeComplexity() {
-        BPlusTree<int, string> btree(DEFAULT_ORDER);
-        for (int roundIdx = 0; roundIdx < sizeof(roundSize) / sizeof(int); ++roundIdx) {
-            auto checkpoint1 = std::chrono::high_resolution_clock::now();
-            for (int i = 0; i < roundSize[roundIdx]; ++i) {
-                btree.insert(i, string(STRING_SIZE, 'a'));
+        fflush(fp);
+        uniform_int_distribution<int> dist;
+        random_device                 rd;
+        default_random_engine         rng{ rd() };
+        BPlusTree<int, string>        btree(DEFAULT_ORDER);
+        double                        insertTime, eraseTime;
+        for (size_t tidx = 0; tidx <= tmidx;) {
+            if (btree.size() == treeSize[tidx]) {
+                insertTime = testInsert(btree);
+                eraseTime  = testInsert(btree);
+                fprintf(fp, "      ├── size: %8d  ncount: %7d  height: %2d  insert: %9.6lfus  erase: %9.6lfus\n",
+                        btree.size(), btree.ncount(), btree.height(), insertTime, eraseTime);
+                fflush(fp);
+                tidx++;
             }
-            auto checkpoint2 = std::chrono::high_resolution_clock::now();
-            for (int i = 0; i < roundSize[roundIdx]; ++i) {
-                btree.erase(i);
-            }
-            auto                          checkpoint3 = std::chrono::high_resolution_clock::now();
-            std::chrono::duration<double> insertTime  = checkpoint2 - checkpoint1;
-            std::chrono::duration<double> eraseTime   = checkpoint3 - checkpoint2;
-            fprintf(fp, "      ├── scale: %9d  insert: %11.8lfs  erase: %11.8lfs\n", roundSize[roundIdx],
-                    insertTime.count(), eraseTime.count());
-            fflush(fp);
+            btree.insert(dist(rng), string(STRING_SIZE, 'a'));
         }
         fprintf(fp, "      └── finished\n");
+        fflush(fp);
     }
 
     void measureEffectOfOrder(const int& scale) {
-        BPlusTree<int, string>* btree = nullptr;
-        for (int orderIdx = 0; orderIdx < sizeof(orderSize) / sizeof(int); ++orderIdx) {
-            btree            = new BPlusTree<int, string>(orderSize[orderIdx]);
-            auto checkpoint1 = std::chrono::high_resolution_clock::now();
-            for (int i = 0; i < scale; ++i) {
-                btree->insert(i, string(STRING_SIZE, 'a'));
+        fflush(fp);
+        uniform_int_distribution<int> dist;
+        random_device                 rd;
+        default_random_engine         rng{ rd() };
+        double                        insertTime, eraseTime;
+        for (size_t oidx = 0; oidx <= omidx; ++oidx) {
+            BPlusTree<int, string> btree(orderSize[oidx]);
+            while (btree.size() < scale) {
+                btree.insert(dist(rng), string(STRING_SIZE, 'a'));
             }
-            auto checkpoint2 = std::chrono::high_resolution_clock::now();
-            for (int i = 0; i < scale; ++i) {
-                btree->find(i);
-            }
-            auto checkpoint3 = std::chrono::high_resolution_clock::now();
-            delete btree;
-            std::chrono::duration<double> insertTime = checkpoint2 - checkpoint1;
-            std::chrono::duration<double> eraseTime  = checkpoint3 - checkpoint2;
-            fprintf(fp, "      ├── order: %9d  insert: %11.8lfs  erase: %11.8lfs\n", orderSize[orderIdx],
-                    insertTime.count(), eraseTime.count());
+            insertTime = testInsert(btree);
+            eraseTime  = testInsert(btree);
+            fprintf(fp, "      ├── order: %4d  ncount: %6d  height: %2d  insert: %10.6lfus  erase: %10.6lfus\n",
+                    btree.order(), btree.ncount(), btree.height(), insertTime, eraseTime);
             fflush(fp);
         }
         fprintf(fp, "      └── finished\n");
+        fflush(fp);
     }
 
-    void mearsureSerializeCostWithScale() {
-        BPlusTree<int, string> btree(DEFAULT_ORDER);
-        size_t                 maxIdx = sizeof(roundSize) / sizeof(roundSize[0]) - 1;
-        size_t                 next   = 0;
-        for (int i = 0; i < roundSize[maxIdx]; ++i) {
-            btree.insert(i, string(STRING_SIZE, 'a'));
-            if (i == roundSize[next] - 1) {
-                next++;
-                auto                    checkpoint1 = std::chrono::high_resolution_clock::now();
-                off_t                   fileSize    = Serialization::serialize(btree, "TestBPlusTree.bpt");
-                auto                    checkpoint2 = std::chrono::high_resolution_clock::now();
-                BPlusTree<int, string>* btree2      = Serialization::deserialize<int, string>("TestBPlusTree.bpt");
-                auto                    checkpoint3 = std::chrono::high_resolution_clock::now();
-                delete btree2;
-                std::chrono::duration<double> serializeTime   = checkpoint2 - checkpoint1;
-                std::chrono::duration<double> deserializeTime = checkpoint3 - checkpoint2;
-                fprintf(fp, "      ├── scale: %9d  serialize: %11.8lfs  deserialize: %11.8lfs  file size: %10ldB\n",
-                        i + 1, serializeTime.count(), deserializeTime.count(), fileSize);
+    void mearsureSerialize() {
+        fflush(fp);
+        uniform_int_distribution<int> dist;
+        random_device                 rd;
+        default_random_engine         rng{ rd() };
+        BPlusTree<int, string>        btree(DEFAULT_ORDER);
+        double                        serializeTime, deserializeTime;
+        off_t                         fileSize;
+        struct timespec               t1, t2;
+        char                          filePath[] = "./testXXXXXX";
+        int                           fd;
+        if ((fd = mkstemp(filePath)) < 0)
+            throw runtime_error("mkstemp error");
+        close(fd);
+        for (size_t tidx = 0; tidx <= tmidx;) {
+            if (btree.size() == treeSize[tidx]) {
+                clock_gettime(CLOCK_REALTIME, &t1);
+                fileSize = Serialization::serialize(btree, filePath);
+                clock_gettime(CLOCK_REALTIME, &t2);
+                serializeTime = getTimeDifference(t2, t1);
+                clock_gettime(CLOCK_REALTIME, &t1);
+                BPlusTree<int, string>* btreePtr = Serialization::deserialize<int, string>(filePath);
+                clock_gettime(CLOCK_REALTIME, &t2);
+                deserializeTime = getTimeDifference(t2, t1);
+                delete btreePtr;
+                fprintf(fp,
+                        "      ├── size: %8d  ncount: %6d  height: %2d  serialize: %10.4lfms  deserialize: %10.4lfms  "
+                        "file size: %9ldB\n",
+                        btree.size(), btree.ncount(), btree.height(), serializeTime / 1000, deserializeTime / 1000,
+                        fileSize);
                 fflush(fp);
+                tidx++;
             }
+            btree.insert(dist(rng), string(STRING_SIZE, 'a'));
         }
+        unlink(filePath);
         fprintf(fp, "      └── finished\n");
+        fflush(fp);
     }
 
-    void mearsureSerializeCostWithOrder(const int& scale) {
-        BPlusTree<int, string>* btree = nullptr;
-        for (int orderIdx = 0; orderIdx < sizeof(orderSize) / sizeof(int); ++orderIdx) {
-            btree = new BPlusTree<int, string>(orderSize[orderIdx]);
-            for (int i = 0; i < scale; ++i) {
-                btree->insert(i, string(STRING_SIZE, 'a'));
+    double testInsert(BPlusTree<int, string>& btree) {
+        double                        insertTime;
+        struct timespec               t1, t2;
+        uniform_int_distribution<int> dist;
+        random_device                 rd;
+        default_random_engine         rng{ rd() };
+        for (int i = 0; i < REPEAT; ++i) {
+            int rand = dist(rng);
+            clock_gettime(CLOCK_REALTIME, &t1);
+            bool flag = btree.insert(rand, string(STRING_SIZE, 'a'));
+            clock_gettime(CLOCK_REALTIME, &t2);
+            if (flag) {
+                insertTime += getTimeDifference(t2, t1);
+                btree.erase(rand);
             }
-            auto                    checkpoint1 = std::chrono::high_resolution_clock::now();
-            off_t                   fileSize    = Serialization::serialize(*btree, "TestBPlusTree.bpt");
-            auto                    checkpoint2 = std::chrono::high_resolution_clock::now();
-            BPlusTree<int, string>* btree2      = Serialization::deserialize<int, string>("TestBPlusTree.bpt");
-            auto                    checkpoint3 = std::chrono::high_resolution_clock::now();
-            delete btree;
-            delete btree2;
-            std::chrono::duration<double> serializeTime   = checkpoint2 - checkpoint1;
-            std::chrono::duration<double> deserializeTime = checkpoint3 - checkpoint2;
-            fprintf(fp, "      ├── order: %9d  serialize: %11.8lfs  deserialize: %11.8lfs  file size: %10ldB\n",
-                    orderSize[orderIdx], serializeTime.count(), deserializeTime.count(), fileSize);
-            fflush(fp);
         }
-        fprintf(fp, "      └── finished\n");
+        return insertTime / REPEAT;
+    }
+
+    double testErase(BPlusTree<int, string>& btree) {
+        double                        eraseTime;
+        struct timespec               t1, t2;
+        uniform_int_distribution<int> dist{ 0, (int)btree.size() - 1 };
+        random_device                 rd;
+        default_random_engine         rng{ rd() };
+        for (int i = 0; i < REPEAT; ++i) {
+            int  rand = dist(rng);
+            auto it   = btree.begin();
+            while (rand--) {
+                ++it;
+            }
+            int    key  = it->first;
+            string data = it->second;
+            clock_gettime(CLOCK_REALTIME, &t1);
+            btree.erase(key);
+            clock_gettime(CLOCK_REALTIME, &t2);
+            eraseTime += getTimeDifference(t2, t1);
+            btree.insert(key, data);
+        }
+        return eraseTime / REPEAT;
+    }
+
+private:
+    /* retrun: Microsecond */
+    double getTimeDifference(const struct timespec& t2, const struct timespec& t1) const {
+        double secDiff  = (static_cast<double>(t2.tv_sec) - static_cast<double>(t1.tv_sec)) * 1000000;
+        double nsecDiff = (static_cast<double>(t2.tv_nsec) - static_cast<double>(t1.tv_nsec)) / 1000;
+        return secDiff + nsecDiff;
     }
 };

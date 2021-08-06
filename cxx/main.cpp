@@ -58,8 +58,9 @@ int main(int argc, char* argv[]) {
     Serialization::serialize(btree2, "btree.bpt");
     BPlusTree<int, string>* btree4 = Serialization::deserialize<int, string>("btree.bpt");
     btree4->print();
+    delete btree4;
     // Test
     TestBPlusTree test;
-    test.checkAll();  //  test.checkAll(filePath): you can specify an output file instead of stdout
+    test.testAll();  //  test.checkAll(filePath): you can specify an output file instead of stdout
     return 0;
 }

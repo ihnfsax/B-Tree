@@ -49,7 +49,6 @@ public:
     typedef unsigned int            size_type;
 
 protected:
-    typedef unsigned int node_size_type;  // no need bigger than size_type
     typedef struct ListNode {
         key_type*        key;
         data_type        data;
@@ -327,11 +326,12 @@ protected:
         }
     };
 
-    size_type      _size       = 0;  // data number
-    node_size_type _node_count = 0;  // node number
-    order_type     _order;
-    BTNode*        _root = nullptr;
-    ListPtr        _head = nullptr;
+    size_type  _size       = 0;  // data number
+    size_type  _node_count = 0;  // node number
+    size_type  _height     = 0;
+    order_type _order;
+    BTNode*    _root = nullptr;
+    ListPtr    _head = nullptr;
 
 public:
     BPlusTree(order_type order = 3) : _order(order) {
@@ -351,26 +351,28 @@ public:
     }
 
     BPlusTree(const BPlusTree<Key, T>& tree) {
+        if (_root)
+            doRelease(_root);
         this->_size       = tree._size;
         this->_node_count = tree._node_count;
         this->_order      = tree._order;
-        if (_root)
-            doRelease(_root);
-        this->_head = nullptr;
-        this->_root = doCopy(tree._root, nullptr, 0, _head);
+        this->_height     = tree._height;
+        this->_head       = nullptr;
+        this->_root       = doCopy(tree._root, nullptr, 0, _head);
     }
 
     BPlusTree& operator=(const BPlusTree& tree) {
         if (this == &tree) {
             return *this;
         }
+        if (_root)
+            doRelease(_root);
         this->_size       = tree._size;
         this->_node_count = tree._node_count;
         this->_order      = tree._order;
-        if (_root)
-            doRelease(_root);
-        this->_head = nullptr;
-        this->_root = doCopy(tree._root, nullptr, 0, _head);
+        this->_height     = tree._height;
+        this->_head       = nullptr;
+        this->_root       = doCopy(tree._root, nullptr, 0, _head);
         return *this;
     }
 
@@ -382,8 +384,12 @@ public:
         return _order;
     }
 
-    node_size_type ncount() const {
+    size_type ncount() const {
         return _node_count;
+    }
+
+    size_type height() const {
+        return _height;
     }
 
     BTIterator end() {
@@ -476,6 +482,7 @@ public:
             _head = v->entry[0];
             _size++;
             _node_count++;
+            _height++;
             return true;
         }
         while (true) {
@@ -594,14 +601,15 @@ public:
             }
         }
         ListPtr k = _head;
-        std::cout << "List: ";
+        std::cout << "\e[1;38;5;45mList:\e[0m ";
         while (k) {
             std::cout << "(" << *(k->key) << ":" << k->data << ")";
             if (k->next)
                 std::cout << "\e[1;38;5;226m-->\e[0m";
             k = k->next;
         }
-        std::cout << "\nSize: " << _size << "\nNode Count: " << _node_count << "\n";
+        std::cout << "\n\e[1;38;5;45mSize:\e[0m " << _size << "\n\e[1;38;5;45mNode Count:\e[0m " << _node_count
+                  << "\n\e[1;38;5;45mHeight:\e[0m " << _height << "\n";
     }
 
 protected:
@@ -636,6 +644,7 @@ protected:
             n2->parent          = n->parent;
             _root               = n->parent;
             _node_count++;
+            _height++;
         }
         _node_count++;
         return flag ? n : n2;
@@ -650,6 +659,7 @@ protected:
                 DELETE(n);
                 _root = nullptr;
                 _head = nullptr;
+                _height--;
             }
         }
         else {
@@ -707,6 +717,7 @@ protected:
             DELETE(p);
             _root = n;
             _node_count--;
+            _height--;
         }
     }
 
