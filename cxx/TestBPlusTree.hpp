@@ -11,9 +11,11 @@
 using namespace my;
 using namespace std;
 
-const int treeSize[]  = { 10,     100,    1000,    10000,   40000,   70000,    100000,
-                         400000, 700000, 1000000, 4000000, 7000000, 10000000, 30000000 };
-const int orderSize[] = { 8, 16, 32, 64, 128, 256, 512, 1024, 2048 };
+const int treeSize[] = {
+    10, 100, 1000, 10000, 40000, 70000, 100000, 400000, 700000, 1000000, 4000000, 7000000, 10000000
+};
+const int orderSize[] = { 8,   16,   32,   64,   128,  256,  384,  512,  640,  768,
+                          896, 1024, 1152, 1280, 1408, 1536, 1664, 1792, 1920, 2048 };
 
 class TestBPlusTree {
 private:
@@ -42,7 +44,7 @@ public:
             measureTimeComplexity();
         }
         if (stage == 2 || stage <= 0 || stage > 5) {
-            int scale = 2000000;
+            int scale = 1000000;
             fprintf(fp, "Stage 2 : measure effect of order (%d entries) \n", scale);
             measureEffectOfOrder(scale);
         }
@@ -136,7 +138,7 @@ public:
     }
 
     double testInsert(BPlusTree<int, string>& btree) {
-        double                        insertTime;
+        double                        insertTime = 0;
         struct timespec               t1, t2;
         uniform_int_distribution<int> dist;
         random_device                 rd;
