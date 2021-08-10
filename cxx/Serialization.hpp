@@ -1,14 +1,11 @@
 /* non-portable, not consider endianness */
 #pragma once
 #include "BPlusTree.hpp"
-// #include <concepts>
 #include <fcntl.h>
 #include <map>
 #include <sys/stat.h>
-#include <typeinfo>
 #include <unistd.h>
 
-using namespace std;
 namespace my {
 #define RWRWRW (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
 #define TP_UNKNOWN 0x00    // unknown type
@@ -43,18 +40,18 @@ private:
 
 public:
     template <class Key, class T>
-    static off_t serialize(const BPlusTree<Key, T>& btree, const std::string& filePath, const mode_t& mode = RWRWRW) {
+    off_t serialize(const BPlusTree<Key, T>& btree, const std::string& filePath, const mode_t& mode = RWRWRW) {
         return serialize(btree, filePath.c_str(), mode);
     }
 
     template <class Key, class T>
-    static off_t serialize(const BPlusTree<Key, T>& btree, const char* filePath, const mode_t& mode = RWRWRW) {
+    off_t serialize(const BPlusTree<Key, T>& btree, const char* filePath, const mode_t& mode = RWRWRW) {
         int fd;
         if ((fd = open(filePath, O_WRONLY | O_CREAT | O_TRUNC, mode | S_IRUSR | S_IWUSR)) == -1)
             throw std::runtime_error("open error");
         BptHeader h;
         writeHeader(fd, btree, h);
-        map<const BTNode<Key, T>* const, FNode> nodeMap;
+        std::map<const BTNode<Key, T>* const, FNode> nodeMap;
         writeNode<Key, T>(fd, btree._root, nodeMap, h);
         off_t end;
         if ((end = lseek(fd, 0, SEEK_END)) == -1)
@@ -64,11 +61,11 @@ public:
         return end;
     }
 
-    template <class Key, class T> static BPlusTree<Key, T>* deserialize(const std::string& filePath) {
+    template <class Key, class T> BPlusTree<Key, T>* deserialize(const std::string& filePath) {
         return deserialize<Key, T>(filePath.c_str());
     }
 
-    template <class Key, class T> static BPlusTree<Key, T>* deserialize(const char* filePath) {
+    template <class Key, class T> BPlusTree<Key, T>* deserialize(const char* filePath) {
         int fd;
         if ((fd = open(filePath, O_RDONLY)) == -1)
             throw std::runtime_error("open error");
@@ -83,17 +80,11 @@ public:
         return btree;
     }
 
-    template <class T> static char getType() {
-        // if constexpr (same_as<T, int>) {
-        //     cout << "int\n";
-        // }
-        // else if constexpr (same_as<T, string>) {
-        //     cout << "string\n";
-        // }
+    template <class T> char getType() {
         if (typeid(T) == typeid(int)) {
             return TP_INT;
         }
-        else if (typeid(T) == typeid(string)) {
+        else if (typeid(T) == typeid(std::string)) {
             return TP_STLSTRING;
         }
         else {
@@ -103,7 +94,7 @@ public:
     }
 
 private:
-    template <class Key, class T> static void writeHeader(const int& fd, const BPlusTree<Key, T>& btree, BptHeader& h) {
+    template <class Key, class T> void writeHeader(const int& fd, const BPlusTree<Key, T>& btree, BptHeader& h) {
         h.magic = MAGIC;
         if ((h.keyType = getType<Key>()) == TP_UNKNOWN)
             throw std::runtime_error("unknown key type");
@@ -127,8 +118,8 @@ private:
     }
 
     template <class Key, class T>
-    static void writeNode(const int& fd, const BTNode<Key, T>* const n,
-                          map<const BTNode<Key, T>* const, FNode>& nodeMap, const BptHeader& h) {
+    void writeNode(const int& fd, const BTNode<Key, T>* const n, std::map<const BTNode<Key, T>* const, FNode>& nodeMap,
+                   const BptHeader& h) {
         if (n == nullptr)
             return;
         FNode fnode;
@@ -154,7 +145,7 @@ private:
             if (lseek(fd, h.offSize * n->count, SEEK_CUR) == -1) /* jump child array */
                 throw std::runtime_error("lseek error: jump child array");
         }
-        nodeMap.insert(pair<const BTNode<Key, T>* const, FNode>(n, fnode));
+        nodeMap.insert(std::pair<const BTNode<Key, T>* const, FNode>(n, fnode));
         if (n->parent != nullptr) {
             BTNode<Key, T>* p  = n->parent;
             auto            it = nodeMap.find(p);
@@ -172,23 +163,24 @@ private:
         }
     }
 
-    template <class T> static void writeType(const int& fd, T& value) {
-        if (typeid(T) == typeid(int)) {
-            if (write(fd, &value, sizeof(int)) == -1)
-                throw std::runtime_error("write error: int");
-        }
-        else if (typeid(T) == typeid(string)) {
-            string*           temp    = reinterpret_cast<string*>(&value);
-            string::size_type strSize = temp->size();
-            if (write(fd, &strSize, sizeof(string::size_type)) == -1)
-                throw std::runtime_error("write error: string size");
-            if (write(fd, temp->c_str(), strSize) == -1)
-                throw std::runtime_error("write error: string");
-        }
-        // TODO: add type here
+    template <class T> void writeType(const int& fd, T& value) {
+        throw std::runtime_error("unsupported type");
     }
 
-    template <class Key, class T> static void readHeader(const int& fd, BPlusTree<Key, T>*& btree, BptHeader& h) {
+    void writeType(const int& fd, int& value) {
+        if (write(fd, &value, sizeof(int)) == -1)
+            throw std::runtime_error("write error: int");
+    }
+
+    void writeType(const int& fd, std::string& value) {
+        std::string::size_type strSize = value.size();
+        if (write(fd, &strSize, sizeof(std::string::size_type)) == -1)
+            throw std::runtime_error("write error: string size");
+        if (write(fd, value.c_str(), strSize) == -1)
+            throw std::runtime_error("write error: string");
+    }
+
+    template <class Key, class T> void readHeader(const int& fd, BPlusTree<Key, T>*& btree, BptHeader& h) {
         assert(btree == nullptr); /* DEBUG */
         if (read(fd, &h, sizeof(BptHeader)) != sizeof(BptHeader))
             throw std::runtime_error("read error: header (part 1)");
@@ -205,7 +197,7 @@ private:
             throw std::runtime_error("read error: height of BPlusTree");
     }
 
-    template <class Key, class T> static void checkHeader(const BptHeader& h) {
+    template <class Key, class T> void checkHeader(const BptHeader& h) {
         if (h.magic != MAGIC)
             throw std::runtime_error("unknown file header");
         if (getType<Key>() == TP_UNKNOWN)
@@ -225,8 +217,8 @@ private:
     }
 
     template <class Key, class T>
-    static BTNode<Key, T>* readNode(const int& fd, BTNode<Key, T>* p, const order_type<Key, T>& pr, ListPtr<Key, T>& h,
-                                    const order_type<Key, T>& order) {
+    BTNode<Key, T>* readNode(const int& fd, BTNode<Key, T>* p, const order_type<Key, T>& pr, ListPtr<Key, T>& h,
+                             const order_type<Key, T>& order) {
         char               type;
         order_type<Key, T> count;
         BTNode<Key, T>*    n = nullptr;
@@ -283,26 +275,23 @@ private:
         return n;
     }
 
-    template <class T> static void readType(const int& fd, T& value) {
-        if (typeid(T) == typeid(int)) {
-            if (read(fd, &value, sizeof(int)) != sizeof(int))
-                throw std::runtime_error("read error: int");
-        }
-        else if (typeid(T) == typeid(string)) {
-            string::size_type strSize;
-            if (read(fd, &strSize, sizeof(string::size_type)) != sizeof(string::size_type))
-                throw std::runtime_error("read error: string size");
-            char* cstr;
-            if ((cstr = new char[strSize + 1]) == nullptr) /* allocate for \0 */
-                throw std::runtime_error("can not allocate memory for string value");
-            if (read(fd, cstr, strSize) != strSize)
-                throw std::runtime_error("read error: char *");
-            cstr[strSize] = 0;
-            string* temp  = reinterpret_cast<string*>(&value);
-            *temp         = string(cstr);
-            delete[] cstr;
-        }
-        // TODO: add type here
+    void readType(const int& fd, int& value) {
+        if (read(fd, &value, sizeof(int)) != sizeof(int))
+            throw std::runtime_error("read error: int");
+    }
+
+    void readType(const int& fd, std::string& value) {
+        std::string::size_type strSize;
+        if (read(fd, &strSize, sizeof(std::string::size_type)) != sizeof(std::string::size_type))
+            throw std::runtime_error("read error: string size");
+        char* cstr;
+        if ((cstr = new char[strSize + 1]) == nullptr) /* allocate for \0 */
+            throw std::runtime_error("can not allocate memory for string value");
+        if (read(fd, cstr, strSize) != strSize)
+            throw std::runtime_error("read error: char *");
+        cstr[strSize] = 0;
+        value         = std::string(cstr);
+        delete[] cstr;
     }
 };
 }  // namespace my

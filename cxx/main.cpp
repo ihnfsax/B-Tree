@@ -55,12 +55,13 @@ int main(int argc, char* argv[]) {
     btree3->print();
     delete btree3;  // destrcutor
     // serialize and deserialize
-    Serialization::serialize(btree2, "btree.bpt");
-    BPlusTree<int, string>* btree4 = Serialization::deserialize<int, string>("btree.bpt");
+    Serialization serialization;
+    serialization.serialize(btree2, "btree.bpt");
+    BPlusTree<int, string>* btree4 = serialization.deserialize<int, string>("btree.bpt");
     btree4->print();
     delete btree4;
     // Test
-    TestBPlusTree test;
-    test.testAll();  //  test.checkAll(filePath): you can specify an output file instead of stdout
+    TestBPlusTree test;  //  test(filePath): you can specify an output file instead of stdout
+    test.testAll();
     return 0;
 }
