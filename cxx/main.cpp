@@ -62,6 +62,6 @@ int main(int argc, char* argv[]) {
     delete btree4;
     // Test
     TestBPlusTree test;  //  test(filePath): you can specify an output file instead of stdout
-    test.testAll();
+    test.testAll(4);
     return 0;
 }

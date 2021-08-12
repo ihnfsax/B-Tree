@@ -1,4 +1,14 @@
 #include "TestBPlusTree.hpp"
+#include "BPlusTree.hpp"
+#include "Serialization.hpp"
+#include <map>
+#include <random>
+#include <sys/time.h>
+
+#define REPEAT 200
+#define STRING_SIZE 1
+#define DEFAULT_ORDER 64
+#define BEST_ORDER 8
 
 void TestBPlusTree::testAll(const int& stage) {
     if (stage == 1 || stage <= 0 || stage > 5) {
@@ -12,7 +22,11 @@ void TestBPlusTree::testAll(const int& stage) {
     }
     if (stage == 3 || stage <= 0 || stage > 5) {
         fprintf(fp, "Stage 3 : measure serialization and deserialization cost (%d keys per node)\n", DEFAULT_ORDER);
-        mearsureSerialize();
+        measureSerialize();
+    }
+    if (stage == 4 || stage <= 0 || stage > 5) {
+        fprintf(fp, "Stage 4 : measure performance (%d keys per node)\n", BEST_ORDER);
+        measurePerformance();
     }
 }
 
@@ -59,7 +73,7 @@ void TestBPlusTree::measureEffectOfOrder(const int& scale) {
     fflush(fp);
 }
 
-void TestBPlusTree::mearsureSerialize() {
+void TestBPlusTree::measureSerialize() {
     fflush(fp);
     std::uniform_int_distribution<int> dist;
     std::random_device                 rd;
@@ -96,6 +110,85 @@ void TestBPlusTree::mearsureSerialize() {
         btree.insert(dist(rng), std::string(STRING_SIZE, 'a'));
     }
     unlink(filePath);
+    fprintf(fp, "      └── finished\n");
+    fflush(fp);
+}
+
+void TestBPlusTree::measurePerformance() {
+    fflush(fp);
+    int                             i;
+    struct timespec                 t1, t2;
+    my::BPlusTree<int, std::string> btree(128);
+    std::map<int, std::string>      map;
+    std::vector<int>                ordered_keys;
+    for (int j = 1; j <= treeSize[tmidx]; ++j) {
+        ordered_keys.push_back(j);
+    }
+    fprintf(fp, "      ├── std::map:\n");
+    i = 0;
+    clock_gettime(CLOCK_REALTIME, &t1);
+    for (size_t tidx = 0; tidx <= tmidx;) {
+        if (map.size() == treeSize[tidx]) {
+            clock_gettime(CLOCK_REALTIME, &t2);
+            double insertTime = getTimeDifference(t2, t1);
+            fprintf(fp, "      ├── size: %8zd  insert: %9.6lfs\n", map.size(), insertTime / 1000000);
+            fflush(fp);
+            tidx++;
+        }
+        map[ordered_keys[i++]] = std::string(STRING_SIZE, 'a');
+    }
+    map.clear();
+    i = 0;
+    fprintf(fp, "      ├── my::BPlusTree:\n");
+    clock_gettime(CLOCK_REALTIME, &t1);
+    for (size_t tidx = 0; tidx <= tmidx;) {
+        if (btree.size() == treeSize[tidx]) {
+            clock_gettime(CLOCK_REALTIME, &t2);
+            double insertTime = getTimeDifference(t2, t1);
+            fprintf(fp, "      ├── size: %8d  ncount: %7d  height: %2d  insert: %9.6lfs\n", btree.size(),
+                    btree.ncount(), btree.height(), insertTime / 1000000);
+            fflush(fp);
+            tidx++;
+        }
+        btree.insert(ordered_keys[i++], std::string(STRING_SIZE, 'a'));
+    }
+    btree.clear();
+    ordered_keys.clear();
+    std::uniform_int_distribution<int> dist;
+    std::random_device                 rd;
+    std::default_random_engine         rng{ rd() };
+    std::vector<int>                   random_keys;
+    for (int j = 1; j <= treeSize[tmidx]; ++j) {
+        random_keys.push_back(dist(rng));
+    }
+    i = 0;
+    fprintf(fp, "      ├── std::map (random key):\n");
+    clock_gettime(CLOCK_REALTIME, &t1);
+    for (size_t tidx = 0; tidx <= tmidx;) {
+        if (map.size() == treeSize[tidx]) {
+            clock_gettime(CLOCK_REALTIME, &t2);
+            double insertTime = getTimeDifference(t2, t1);
+            fprintf(fp, "      ├── size: %8zd  insert: %9.6lfs\n", map.size(), insertTime / 1000000);
+            fflush(fp);
+            tidx++;
+        }
+        map[random_keys[i++]] = std::string(STRING_SIZE, 'a');
+    }
+    map.clear();
+    i = 0;
+    fprintf(fp, "      ├── my::BPlusTree (random key):\n");
+    clock_gettime(CLOCK_REALTIME, &t1);
+    for (size_t tidx = 0; tidx <= tmidx;) {
+        if (btree.size() == treeSize[tidx]) {
+            clock_gettime(CLOCK_REALTIME, &t2);
+            double insertTime = getTimeDifference(t2, t1);
+            fprintf(fp, "      ├── size: %8d  ncount: %7d  height: %2d  insert: %9.6lfs\n", btree.size(),
+                    btree.ncount(), btree.height(), insertTime / 1000000);
+            fflush(fp);
+            tidx++;
+        }
+        btree.insert(random_keys[i++], std::string(STRING_SIZE, 'a'));
+    }
     fprintf(fp, "      └── finished\n");
     fflush(fp);
 }

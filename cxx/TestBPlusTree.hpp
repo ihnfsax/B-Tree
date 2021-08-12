@@ -1,12 +1,5 @@
 #pragma once
-#include "BPlusTree.hpp"
-#include "Serialization.hpp"
-#include <random>
-#include <sys/time.h>
-
-#define REPEAT 200
-#define STRING_SIZE 1
-#define DEFAULT_ORDER 64
+#include <iostream>
 
 /* const imply internal linkage in C++ */
 /* new feature of C++17: "inline" allow to use a single memory address for each constant */
@@ -15,6 +8,10 @@ inline constexpr int treeSize[]  = { 10,      100,     1000,    10000,   40000, 
                                     6000000, 7000000, 8000000, 9000000, 10000000 };
 inline constexpr int orderSize[] = { 8,   16,   32,   64,   128,  256,  384,  512,  640,  768,
                                      896, 1024, 1152, 1280, 1408, 1536, 1664, 1792, 1920, 2048 };
+
+namespace my {
+template <class Key, class T> class BPlusTree;
+}
 
 class TestBPlusTree {
 private:
@@ -38,7 +35,8 @@ public:
     void   testAll(const int& stage = 0);
     void   measureTimeComplexity();
     void   measureEffectOfOrder(const int& scale);
-    void   mearsureSerialize();
+    void   measureSerialize();
+    void   measurePerformance();
     double testInsert(my::BPlusTree<int, std::string>& btree);
     double testErase(my::BPlusTree<int, std::string>& btree);
 
