@@ -1,6 +1,7 @@
 #include "TestBPlusTree.hpp"
 #include "BPlusTree.hpp"
 #include "Serialization.hpp"
+#include <algorithm>
 #include <map>
 #include <random>
 #include <sys/time.h>
@@ -118,11 +119,11 @@ void TestBPlusTree::measurePerformance() {
     fflush(fp);
     int                             i;
     struct timespec                 t1, t2;
-    my::BPlusTree<int, std::string> btree(128);
+    my::BPlusTree<int, std::string> btree(BEST_ORDER);
     std::map<int, std::string>      map;
-    std::vector<int>                ordered_keys;
+    std::vector<int>                keys;
     for (int j = 1; j <= treeSize[tmidx]; ++j) {
-        ordered_keys.push_back(j);
+        keys.push_back(j);
     }
     fprintf(fp, "      ├── std::map:\n");
     i = 0;
@@ -135,7 +136,7 @@ void TestBPlusTree::measurePerformance() {
             fflush(fp);
             tidx++;
         }
-        map[ordered_keys[i++]] = std::string(STRING_SIZE, 'a');
+        map[keys[i++]] = std::string(STRING_SIZE, 'a');
     }
     map.clear();
     i = 0;
@@ -150,17 +151,10 @@ void TestBPlusTree::measurePerformance() {
             fflush(fp);
             tidx++;
         }
-        btree.insert(ordered_keys[i++], std::string(STRING_SIZE, 'a'));
+        btree.insert(keys[i++], std::string(STRING_SIZE, 'a'));
     }
     btree.clear();
-    ordered_keys.clear();
-    std::uniform_int_distribution<int> dist;
-    std::random_device                 rd;
-    std::default_random_engine         rng{ rd() };
-    std::vector<int>                   random_keys;
-    for (int j = 1; j <= treeSize[tmidx]; ++j) {
-        random_keys.push_back(dist(rng));
-    }
+    std::random_shuffle(keys.begin(), keys.end());
     i = 0;
     fprintf(fp, "      ├── std::map (random key):\n");
     clock_gettime(CLOCK_REALTIME, &t1);
@@ -172,7 +166,7 @@ void TestBPlusTree::measurePerformance() {
             fflush(fp);
             tidx++;
         }
-        map[random_keys[i++]] = std::string(STRING_SIZE, 'a');
+        map[keys[i++]] = std::string(STRING_SIZE, 'a');
     }
     map.clear();
     i = 0;
@@ -187,7 +181,7 @@ void TestBPlusTree::measurePerformance() {
             fflush(fp);
             tidx++;
         }
-        btree.insert(random_keys[i++], std::string(STRING_SIZE, 'a'));
+        btree.insert(keys[i++], std::string(STRING_SIZE, 'a'));
     }
     fprintf(fp, "      └── finished\n");
     fflush(fp);
