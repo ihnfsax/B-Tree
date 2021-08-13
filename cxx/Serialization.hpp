@@ -74,7 +74,7 @@ public:
         BptHeader          h;
         readHeader(fd, btree, h);
         if (btree->_size != 0)
-            btree->_root = readNode<Key, T>(fd, nullptr, 0, btree->_head, btree->_order);
+            btree->_root = readNode<Key, T>(fd, nullptr, 0, btree->_head, btree->_end, btree->_order);
         if (close(fd) == -1)
             throw std::runtime_error("close error");
         return btree;
@@ -218,7 +218,7 @@ private:
 
     template <class Key, class T>
     BTNode<Key, T>* readNode(const int& fd, BTNode<Key, T>* p, const order_type<Key, T>& pr, ListPtr<Key, T>& h,
-                             const order_type<Key, T>& order) {
+                             ListPtr<Key, T> e, const order_type<Key, T>& order) {
         char               type;
         order_type<Key, T> count;
         BTNode<Key, T>*    n = nullptr;
@@ -252,6 +252,8 @@ private:
             }
             else
                 h = n->entry[0]; /* update list head */
+            e->prior                     = n->entry[n->count - 1];
+            n->entry[n->count - 1]->next = e;
         }
         else {
             Key key;
@@ -269,7 +271,7 @@ private:
                     throw std::runtime_error("read error: child offset");
                 if (lseek(fd, offChild, SEEK_SET) == -1)
                     throw std::runtime_error("lseek error: move to child");
-                n->child[i] = readNode<Key, T>(fd, n, i, h, order);
+                n->child[i] = readNode<Key, T>(fd, n, i, h, e, order);
             }
         }
         return n;

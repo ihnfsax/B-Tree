@@ -60,8 +60,52 @@ int main(int argc, char* argv[]) {
     BPlusTree<int, string>* btree4 = serialization.deserialize<int, string>("btree.bpt");
     btree4->print();
     delete btree4;
-    // Test
+    // // Test
     TestBPlusTree test;  //  test(filePath): you can specify an output file instead of stdout
-    test.testAll(4);
+    test.testAll(1);
+
+    // struct timespec t1, t2;
+    // deque<int>      a;
+    // for (int i = 1; i <= 1000000; ++i) {
+    //     a.push_front(i);
+    // }
+    // BPlusTree<int, string> btree(8);
+    // TestBPlusTree          test;
+    // btree.insertTime1 = 0;
+    // btree.searchCount = 0;
+    // btree.searchTime1 = 0;
+    // btree.searchTime2 = 0;
+    // clock_gettime(CLOCK_REALTIME, &t1);
+    // for (int i = 0; i < 1000000; ++i) {
+    //     if (btree.size() == 60) {
+    //         btree.print();
+    //     }
+    //     btree.insert(a[i], "a");
+    // }
+    // clock_gettime(CLOCK_REALTIME, &t2);
+    // double insertTime = test.getTimeDifference(t2, t1);
+    // printf("%d %lf %lf %lf\n", btree.searchCount, btree.searchTime1, btree.searchTime2, insertTime);
+    // btree.clear();
+    // btree.insertTime1 = 0;
+    // btree.searchCount = 0;
+    // btree.searchTime1 = 0;
+    // btree.searchTime2 = 0;
+    // random_shuffle(a.begin(), a.end());
+    // printf("%d  %lf %lf\n", btree.searchCount, btree.searchTime1, btree.searchTime2);
+    // clock_gettime(CLOCK_REALTIME, &t1);
+    // for (int i = 0; i < 1000000; ++i) {
+    //     btree.insert(a[i], "a");
+    // }
+    // clock_gettime(CLOCK_REALTIME, &t2);
+    // insertTime = test.getTimeDifference(t2, t1);
+    // printf("%d  %lf %lf %lf\n", btree.searchCount, btree.searchTime1, btree.searchTime2, insertTime);
+
+    // BPlusTree<int, string> btree(5);
+    // for (int i = 0; i < 20; i++) {
+    //     btree.insert(i, to_string(i * 10));
+    // }
+    // BPlusTree<int, string> btree2(8);
+    // btree2 = btree;
+    // btree2.print();
     return 0;
 }

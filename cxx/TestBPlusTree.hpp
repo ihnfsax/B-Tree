@@ -39,8 +39,10 @@ public:
     void   measurePerformance();
     double testInsert(my::BPlusTree<int, std::string>& btree);
     double testErase(my::BPlusTree<int, std::string>& btree);
-
-private:
     /* retrun: Microsecond */
-    double getTimeDifference(const struct timespec& t2, const struct timespec& t1) const;
+    static double getTimeDifference(const struct timespec& t2, const struct timespec& t1) {
+        double secDiff  = (static_cast<double>(t2.tv_sec) - static_cast<double>(t1.tv_sec)) * 1000000;
+        double nsecDiff = (static_cast<double>(t2.tv_nsec) - static_cast<double>(t1.tv_nsec)) / 1000;
+        return secDiff + nsecDiff;
+    }
 };

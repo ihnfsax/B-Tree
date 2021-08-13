@@ -42,6 +42,10 @@ template <class Key, class T> class BPlusTree {
     friend class Serialization;
 
 public:
+    double                          insertTime1 = 0;
+    int                             searchCount = 0;
+    double                          searchTime1 = 0;
+    double                          searchTime2 = 0;
     typedef Key                     key_type;
     typedef T                       data_type;
     typedef std::pair<const Key, T> value_type;
@@ -98,7 +102,8 @@ protected:
 
     public:
         BTIterator(ListPtr n) : node(n) {
-            if (n) {
+            assert(n != nullptr);
+            if (n && n->key) {
                 pair = new BTPair(*n->key, n->data);
             }
         };
@@ -110,8 +115,7 @@ protected:
         BTIterator(const BTIterator& it) {
             node = it.node;
             DELETE(pair);
-            if (it.node)
-                pair = new BTPair(it.pair->first, it.pair->second);
+            pair = (node && node->key) ? new BTPair(*node->key, node->data) : nullptr;
         }
 
         BTIterator& operator=(const BTIterator& it) {
@@ -119,8 +123,7 @@ protected:
                 return *this;
             node = it.node;
             DELETE(pair);
-            if (it.node)
-                pair = new BTPair(it.pair->first, it.pair->second);
+            pair = (node && node->key) ? new BTPair(*node->key, node->data) : nullptr;
             return *this;
         }
 
@@ -157,22 +160,23 @@ protected:
         }
 
         void operator++() {
-            if (node == nullptr) {
+            if (node->next == nullptr) {
                 throw std::runtime_error("BPlusTree iterator not incrementable");
             }
             else {
                 node = node->next;
                 DELETE(pair);
-                pair = node ? new BTPair(*node->key, node->data) : nullptr;
+                pair = (node && node->key) ? new BTPair(*node->key, node->data) : nullptr;
             }
         }
 
         void operator--() {
-            if (node == nullptr) {
+            if (node->prior == nullptr) {
                 throw std::runtime_error("BPlusTree iterator not decrementable");
             }
             else {
                 node = node->prior;
+                assert(node->key);
                 DELETE(pair);
                 pair = node ? new BTPair(*node->key, node->data) : nullptr;
             }
@@ -250,6 +254,33 @@ protected:
                 memcpy(child, n.child, order * sizeof(BTNode*));
             }
             return *this;
+        }
+
+        order_type search(const key_type& k, int& scount, double& time1, double& time2) const {
+            scount++;
+            struct timespec t1, t2;
+            clock_gettime(CLOCK_REALTIME, &t1);
+            if (count == 0)
+                return -2;
+            if (k < key[0]) {
+                clock_gettime(CLOCK_REALTIME, &t2);
+                time1 += getTimeDifference(t2, t1);
+                return -1;
+            }
+            order_type i = 0;
+            for (; i < count - 1; ++i) {
+
+                if (k < key[i + 1]) {
+
+                    clock_gettime(CLOCK_REALTIME, &t2);
+                    time2 += getTimeDifference(t2, t1);
+                    return i;
+                }
+            }
+
+            clock_gettime(CLOCK_REALTIME, &t2);
+            time2 += getTimeDifference(t2, t1);
+            return i;
         }
 
         order_type search(const key_type& k) const {
@@ -332,12 +363,15 @@ protected:
     order_type _order;
     BTNode*    _root = nullptr;
     ListPtr    _head = nullptr;
+    ListPtr    _end  = nullptr;
 
 public:
     BPlusTree(order_type order = 3) : _order(order) {
         if (order < 3) {
             throw std::runtime_error("order of BPlusTree must >= 3");
         }
+        _end  = new ListNode(nullptr);
+        _head = _end;
     };
 
     ~BPlusTree() {
@@ -345,20 +379,22 @@ public:
             doRelease(_root);
         /* DEBUG */
         assert(_root == nullptr);
-        assert(_head == nullptr);
+        assert(_head == _end);
         assert(_size == 0);
         assert(_node_count == 0);
+        delete _end;
     }
 
     BPlusTree(const BPlusTree<Key, T>& tree) {
         if (_root)
             doRelease(_root);
+        _end              = new ListNode(nullptr);
+        _head             = _end;
         this->_size       = tree._size;
         this->_node_count = tree._node_count;
         this->_order      = tree._order;
         this->_height     = tree._height;
-        this->_head       = nullptr;
-        this->_root       = doCopy(tree._root, nullptr, 0, _head);
+        this->_root       = doCopy(tree._root, nullptr, 0, _head, _end);
     }
 
     BPlusTree& operator=(const BPlusTree& tree) {
@@ -371,8 +407,8 @@ public:
         this->_node_count = tree._node_count;
         this->_order      = tree._order;
         this->_height     = tree._height;
-        this->_head       = nullptr;
-        this->_root       = doCopy(tree._root, nullptr, 0, _head);
+        this->_head       = _end;
+        this->_root       = doCopy(tree._root, nullptr, 0, _head, _end);
         return *this;
     }
 
@@ -393,7 +429,7 @@ public:
     }
 
     BTIterator end() {
-        return BTIterator(nullptr);
+        return BTIterator(_end);
     }
 
     BTIterator begin() {
@@ -403,7 +439,7 @@ public:
     BTIterator find(const key_type& key) {
         BTNode* v = _root;
         if (v == nullptr) {
-            return BTIterator(nullptr);
+            return end();
         }
         while (true) {
             order_type r = v->search(key);
@@ -413,14 +449,14 @@ public:
             else if (!v->type && r != -1)
                 v = v->child[r];
             else
-                return BTIterator(nullptr);
+                return end();
         }
     }
 
     BTIterator findMax(const key_type& upperBound) {
         BTNode* v = _root;
         if (v == nullptr) {
-            return BTIterator(nullptr);
+            return end();
         }
         while (true) {
             order_type r = v->search(upperBound);
@@ -430,24 +466,19 @@ public:
             else if (!v->type && r != -1)
                 v = v->child[r];
             else
-                return BTIterator(nullptr);
+                return end();
         }
     }
 
     BTIterator findMax() {
         BTNode* v = _root;
         if (v == nullptr) {
-            return BTIterator(nullptr);
+            return end();
         }
-        while (true) {
-            order_type r = v->count - 1;
-            if (v->type && r >= 0) {
-                return BTIterator(v->entry[r]);
-            }
-            else if (!v->type && r != -1)
-                v = v->child[r];
-            else
-                return BTIterator(nullptr);
+        else {
+            BTIterator it = end();
+            --it;
+            return it;
         }
     }
 
@@ -474,19 +505,26 @@ public:
     }
 
     bool insert(const key_type& key, const data_type& data) {
-        BTNode* v = _root;
+        struct timespec t1, t2;
+        BTNode*         v = _root;
         if (v == nullptr) { /* only for _root */
             v = new BTNode(_order, true);
             v->insert(-1, key, &data);
             _root = v;
             _head = v->entry[0];
+            addEnd(v->entry[0]);
             _size++;
             _node_count++;
             _height++;
+            // clock_gettime(CLOCK_REALTIME, &t2);
+            // insertTime1 += getTimeDifference(t2, t1);
             return true;
         }
         while (true) {
-            order_type r = v->search(key);
+            clock_gettime(CLOCK_REALTIME, &t1);
+            order_type r = v->search(key, searchCount, searchTime1, searchTime2);
+            clock_gettime(CLOCK_REALTIME, &t2);
+            insertTime1 += getTimeDifference(t2, t1);
             if (v->type) {
                 if (r >= 0 && v->key[r] == key)
                     return false; /* already exists */
@@ -494,6 +532,7 @@ public:
                 if (v->entry[r]->prior == nullptr)
                     _head = v->entry[r];
                 _size++;
+
                 return true;
             }
             else {
@@ -545,7 +584,7 @@ public:
             doRelease(_root);
         /* DEBUG */
         assert(_root == nullptr);
-        assert(_head == nullptr);
+        assert(_head == _end);
         assert(_size == 0);
         assert(_node_count == 0);
     }
@@ -594,6 +633,7 @@ public:
                     }
                     if (!pnodes.empty())
                         std::cout << "\e[1;38;5;226m-----\e[0m";
+                    fflush(stdout);
                 }
                 std::cout << "\n";
                 pnodes = cnodes;
@@ -603,7 +643,10 @@ public:
         ListPtr k = _head;
         std::cout << "\e[1;38;5;45mList:\e[0m ";
         while (k) {
-            std::cout << "(" << *(k->key) << ":" << k->data << ")";
+            if (k->key)
+                std::cout << "(" << *(k->key) << ":" << k->data << ")";
+            else
+                std::cout << "(END)";
             if (k->next)
                 std::cout << "\e[1;38;5;226m-->\e[0m";
             k = k->next;
@@ -613,6 +656,12 @@ public:
     }
 
 protected:
+    void addEnd(ListPtr end) {
+        assert(end->next == nullptr || end->next == _end);
+        end->next   = _end;
+        _end->prior = end;
+    }
+
     BTNode* doInsert(BTNode* const n, order_type& r, const key_type& k, const data_type& d) {
         if (n->count < _order) {
             r = n->insert(r, k, &d);
@@ -658,7 +707,7 @@ protected:
                 _node_count--;
                 DELETE(n);
                 _root = nullptr;
-                _head = nullptr;
+                _head = _end;
                 _height--;
             }
         }
@@ -752,7 +801,7 @@ protected:
     }
 
     /* n: src node, p: new parent, return: copied node */
-    static BTNode* doCopy(BTNode* const n, BTNode* const p, const order_type& pr, ListPtr& h) {
+    static BTNode* doCopy(BTNode* const n, BTNode* const p, const order_type& pr, ListPtr& h, ListPtr& e) {
         if (n == nullptr)
             return nullptr;
         BTNode* t = new BTNode(*n);
@@ -771,10 +820,12 @@ protected:
             }
             else
                 h = t->entry[0]; /* update list head */
+            e->prior                     = t->entry[t->count - 1];
+            t->entry[t->count - 1]->next = e;
         }
         else {
             for (order_type i = 0; i < t->count; ++i) {
-                t->child[i] = doCopy(n->child[i], t, i, h); /* can be ignore */
+                t->child[i] = doCopy(n->child[i], t, i, h, e); /* can be ignore */
             }
         }
         return t;
@@ -823,6 +874,12 @@ protected:
             else
                 return nullptr;
         }
+    }
+
+    static double getTimeDifference(const struct timespec& t2, const struct timespec& t1) {
+        double secDiff  = (static_cast<double>(t2.tv_sec) - static_cast<double>(t1.tv_sec)) * 1000000;
+        double nsecDiff = (static_cast<double>(t2.tv_nsec) - static_cast<double>(t1.tv_nsec)) / 1000;
+        return secDiff + nsecDiff;
     }
 };  // namespace my
 #undef MOVE_NODE
